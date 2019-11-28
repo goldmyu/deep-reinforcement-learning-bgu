@@ -5,7 +5,6 @@ import gym
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-# from tensorflow.keras.optimizers import Adam
 import collections
 
 # ================================= TensorBoard settings ===============================================================
@@ -14,6 +13,8 @@ logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 file_writer = tf.summary.create_file_writer(logdir)
 file_writer.set_as_default()
 
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+tf.config.experimental.list_physical_devices('GPU')
 # ================================ Hyper-Parameters ====================================================================
 
 episodes = 5000
@@ -40,9 +41,9 @@ replay_memory = collections.deque(maxlen=N)
 class Model3Layers:
     def __init__(self, _state_dim):
         self.model_3_layers = tf.keras.Sequential([
-            keras.layers.Dense(1024, input_dim=state_size, activation='relu'),
-            keras.layers.Dense(512, activation='relu'),
-            keras.layers.Dense(128, activation='relu'),
+            keras.layers.Dense(24, input_dim=state_size, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(2, activation='linear')
         ])
 
@@ -80,25 +81,25 @@ target_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Ad
 behavior_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
 
 
-def remember(state, action, reward, next_state, done):
-    replay_memory.append((state, action, reward, next_state, done))
+def remember(_state, _action, _reward, _next_state, _done):
+    replay_memory.append((_state, _action, _reward, _next_state, _done))
 
 
 def learn_from_memory():
     minibatch = random.sample(replay_memory, batch_size)
     states = np.zeros((batch_size, 4))
     targets = np.zeros((batch_size, 2))
-    for index ,(state, action, reward, next_state, done) in enumerate(minibatch):
-        target = reward
-        states[index] = state
-        if not done:
-            output = target_model.model_3_layers.predict(next_state)
-            target = reward + discount_factor * np.argmax(output)
+    for index, (_state, _action, _reward, _next_state, _done) in enumerate(minibatch):
+        target = _reward
+        states[index] = _state
+        if not _done:
+            output = target_model.model_3_layers.predict(_next_state)
+            target = _reward + discount_factor * np.argmax(output)
 
-        target_tag = behavior_model.model_3_layers.predict(state)
-        target_tag[0][action] = target
+        target_tag = behavior_model.model_3_layers.predict(_state)
+        target_tag[0][_action] = target
         targets[index] = target_tag[0]
-        losses = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
+    losses = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
 
 
 for episode in range(episodes):
