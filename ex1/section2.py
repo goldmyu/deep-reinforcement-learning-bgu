@@ -90,12 +90,15 @@ def learn_from_memory():
     states = np.zeros((batch_size, 4))
     states_in_minibatch = np.asarray([x[0][0] for x in minibatch])
     targets = behavior_model.model_3_layers.predict(states_in_minibatch)
+    next_states = np.asanyarray([x[3][0] for x in minibatch])
+    outputs = target_model.model_3_layers.predict(next_states)
+
     for index, (_state, _action, _reward, _next_state, _done) in enumerate(minibatch):
         target = _reward
         states[index] = _state
         if not _done:
-            output = target_model.model_3_layers.predict(_next_state)
-            target = _reward + discount_factor * np.argmax(output)
+            # output = target_model.model_3_layers.predict(_next_state)
+            target = _reward + discount_factor * np.max(outputs[index])
 
         # target_tag = behavior_model.model_3_layers.predict(_state)
         # target_tag[0][_action] = target
