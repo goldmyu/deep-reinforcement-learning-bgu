@@ -91,14 +91,11 @@ def learn_from_memory():
         target = reward
         if not done:
             output = target_model.model_3_layers.predict(next_state)
-            target = reward + discount_factor*np.argmax(output)
+            target = reward + discount_factor * np.argmax(output)
 
         target_tag = behavior_model.model_3_layers.predict(state)
         target_tag[0][action] = target
         losses = behavior_model.model_3_layers.fit(x=state, y=target_tag, epochs=1)
-
-    if epsilon_greedy > min_epsilon:
-        epsilon_greedy = epsilon_greedy*epsilon_greedy_decay_rate
 
 
 for episode in range(episodes):
@@ -110,6 +107,10 @@ for episode in range(episodes):
     while not done:
         time += 1
         action = choose_action_by_epsilon_greedy(state)
+
+        if epsilon_greedy > min_epsilon:
+            epsilon_greedy = epsilon_greedy * epsilon_greedy_decay_rate
+
         next_state, reward, done, info = env.step(action)
         next_state = np.reshape(next_state, [1, state_size])
         remember(state, action, reward, next_state, done)
@@ -125,7 +126,3 @@ for episode in range(episodes):
         if time % C == 0:
             # copy weights from one network to the other
             target_model.model_3_layers.set_weights(behavior_model.model_3_layers.get_weights())
-
-
-
-
