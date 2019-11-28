@@ -22,10 +22,12 @@ epsilon_greedy = 0.9
 epsilon_greedy_decay_rate = 0.99
 min_epsilon = 0.1
 
-de = collections.deque([1,2,3])
+de = collections.deque(maxlen=2000)
 
 
 C = 500
+M = 5000
+T = 500
 
 # ======================================================================================================================
 
@@ -50,3 +52,14 @@ model_5_layers = tf.keras.Sequential([
     keras.layers.Dense(64, activation='relu'),
     keras.layers.Dense(2, activation='linear')
 ])
+
+
+def choose_action_by_epsilon_greedy(_state):
+    pass
+
+
+for episode in range(M):
+    state = env.reset()
+    for step in range(T):
+        action = choose_action_by_epsilon_greedy(state)
+    
