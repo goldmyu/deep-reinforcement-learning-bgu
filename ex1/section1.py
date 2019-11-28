@@ -4,7 +4,14 @@ import gym
 import numpy as np
 import tensorflow as tf
 
-# ======================================================================================================================
+
+# ================================= TensorBoard settings ===============================================================
+
+logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+file_writer = tf.summary.create_file_writer(logdir)
+file_writer.set_as_default()
+
+# =================================== Hyper-Parameters =================================================================
 
 train_episodes = 5000
 max_steps_per_episode = 100
@@ -22,12 +29,6 @@ reward_history = []
 
 # Create the q-value lookup table in the size of states X actions and init it to zeros
 q_value_lookup_table = np.zeros(shape=[16, 4])
-
-# ================================= TensorBoard settings ===============================================================
-
-logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-file_writer = tf.summary.create_file_writer(logdir)
-file_writer.set_as_default()
 
 # ======================================================================================================================
 
