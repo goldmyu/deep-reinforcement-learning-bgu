@@ -25,7 +25,7 @@ learning_rate = 0.001
 
 discount_factor = 0.99
 epsilon_greedy = 0.9
-epsilon_greedy_decay_rate = 0.99
+epsilon_greedy_decay_rate = 0.999
 min_epsilon = 0.1
 
 N = 2000
@@ -88,7 +88,8 @@ def remember(_state, _action, _reward, _next_state, _done):
 def learn_from_memory():
     minibatch = random.sample(replay_memory, batch_size)
     states = np.zeros((batch_size, 4))
-    targets = np.zeros((batch_size, 2))
+    states_in_minibatch = np.asarray([x[0][0] for x in minibatch])
+    targets = behavior_model.model_3_layers.predict(states_in_minibatch)
     for index, (_state, _action, _reward, _next_state, _done) in enumerate(minibatch):
         target = _reward
         states[index] = _state
@@ -96,9 +97,9 @@ def learn_from_memory():
             output = target_model.model_3_layers.predict(_next_state)
             target = _reward + discount_factor * np.argmax(output)
 
-        target_tag = behavior_model.model_3_layers.predict(_state)
-        target_tag[0][_action] = target
-        targets[index] = target_tag[0]
+        # target_tag = behavior_model.model_3_layers.predict(_state)
+        # target_tag[0][_action] = target
+        targets[index, _action] = target
     losses = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
 
 
