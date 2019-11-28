@@ -86,16 +86,19 @@ def remember(state, action, reward, next_state, done):
 
 def learn_from_memory():
     minibatch = random.sample(replay_memory, batch_size)
-
-    for state, action, reward, next_state, done in minibatch:
+    states = np.zeros((batch_size, 4))
+    targets = np.zeros((batch_size, 2))
+    for index ,(state, action, reward, next_state, done) in enumerate(minibatch):
         target = reward
+        states[index] = state
         if not done:
             output = target_model.model_3_layers.predict(next_state)
             target = reward + discount_factor * np.argmax(output)
 
         target_tag = behavior_model.model_3_layers.predict(state)
         target_tag[0][action] = target
-        losses = behavior_model.model_3_layers.fit(x=state, y=target_tag, epochs=1)
+        targets[index] = target_tag[0]
+        losses = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
 
 
 for episode in range(episodes):
@@ -107,10 +110,6 @@ for episode in range(episodes):
     while not done:
         time += 1
         action = choose_action_by_epsilon_greedy(state)
-
-        if epsilon_greedy > min_epsilon:
-            epsilon_greedy = epsilon_greedy * epsilon_greedy_decay_rate
-
         next_state, reward, done, info = env.step(action)
         next_state = np.reshape(next_state, [1, state_size])
         remember(state, action, reward, next_state, done)
@@ -122,6 +121,9 @@ for episode in range(episodes):
 
         if len(replay_memory) > batch_size:
             learn_from_memory()
+
+        if epsilon_greedy > min_epsilon:
+            epsilon_greedy = epsilon_greedy * epsilon_greedy_decay_rate
 
         if time % C == 0:
             # copy weights from one network to the other
