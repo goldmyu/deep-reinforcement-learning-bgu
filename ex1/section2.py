@@ -28,6 +28,8 @@ discount_factor = 0.99
 epsilon_greedy = 0.9
 epsilon_greedy_decay_rate = 0.999
 min_epsilon = 0.1
+reward_history = []
+first_time_avg_475 = True
 
 N = 2000
 C = 16
@@ -95,6 +97,14 @@ def learn_from_memory(_step):
     tf.summary.scalar('loss', data=loss, step=_step)
 
 
+def check_reward_avg(rewards_list, _episode, n=100):
+    if _episode > 0:
+        avg = np.sum(rewards_list[_episode-n:_episode]) / n
+        if avg > 475:
+            if first_time_avg_475:
+                print('Reward avg is above 475 for 100 last episodes, and the episode is {}'.format(episode))
+            tf.summary.scalar('reward_moving_avg', data=avg, step=_episode)
+
 # =================================== Main Section =====================================================================
 
 
@@ -114,6 +124,8 @@ for episode in range(episodes):
     done = False
     step = 0
 
+    check_reward_avg()
+
     while not done:
         step += 1
         action = choose_action_by_epsilon_greedy(state)
@@ -123,6 +135,7 @@ for episode in range(episodes):
         state = next_state
 
         if done:
+            reward_history.append(step)
             print('Finished episode {} the score was {} epsilon is {}'.format(episode, step, epsilon_greedy))
             tf.summary.scalar('reward', data=step, step=episode)
             break
