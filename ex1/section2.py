@@ -55,10 +55,12 @@ class Model3Layers:
 
 class Model5Layers:
     def __init__(self):
-        self.model_3_layers = tf.keras.Sequential([
-            keras.layers.Dense(1024, input_dim=state_size, activation='relu'),
-            keras.layers.Dense(512, activation='relu'),
-            keras.layers.Dense(128, activation='relu'),
+        self.model_5_layers = tf.keras.Sequential([
+            keras.layers.Dense(24, input_dim=state_size, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(2, activation='linear')
         ])
 
