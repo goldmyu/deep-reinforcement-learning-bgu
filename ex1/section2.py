@@ -124,7 +124,7 @@ for episode in range(episodes):
     done = False
     step = 0
 
-    check_reward_avg()
+    check_reward_avg(reward_history, episode)
 
     while not done:
         step += 1
