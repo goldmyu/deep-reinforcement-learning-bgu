@@ -12,9 +12,9 @@ import collections
 logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 file_writer = tf.summary.create_file_writer(logdir)
 file_writer.set_as_default()
-
-print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-tf.config.experimental.list_physical_devices('GPU')
+#
+# print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+# tf.config.experimental.list_physical_devices('GPU')
 
 # ================================ Hyper-Parameters ====================================================================
 
@@ -94,7 +94,7 @@ def learn_from_memory(_step):
 
         targets[index, _action] = target
     loss = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
-    tf.summary.scalar('loss', data=loss, step=_step)
+    tf.summary.scalar('loss', data=loss.history["loss"][0], step=_step)
 
 
 def check_reward_avg(rewards_list, _episode, _first_time_avg_475,n=100):
