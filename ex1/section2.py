@@ -1,3 +1,4 @@
+import os
 import random
 from datetime import datetime
 
@@ -13,8 +14,9 @@ logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
 file_writer = tf.summary.create_file_writer(logdir)
 file_writer.set_as_default()
 #
-# print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
-# tf.config.experimental.list_physical_devices('GPU')
+
+print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 # ================================ Hyper-Parameters ====================================================================
 
