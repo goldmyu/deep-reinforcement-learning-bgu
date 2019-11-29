@@ -15,6 +15,7 @@ file_writer.set_as_default()
 
 print("Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 tf.config.experimental.list_physical_devices('GPU')
+
 # ================================ Hyper-Parameters ====================================================================
 
 episodes = 5000
@@ -35,7 +36,7 @@ C = 16
 replay_memory = collections.deque(maxlen=N)
 
 
-# ======================================================================================================================
+# =================================== Network definition ===============================================================
 
 
 class Model3Layers:
@@ -58,7 +59,7 @@ class Model5Layers:
         ])
 
 
-# ======================================================================================================================
+# =================================== Util methods =====================================================================
 
 
 def choose_action_by_epsilon_greedy(_state):
@@ -69,16 +70,6 @@ def choose_action_by_epsilon_greedy(_state):
         output = behavior_model.model_3_layers.predict(_state)
         _step_to_take = np.argmax(output)
     return _step_to_take
-
-
-# Create the environment
-env = gym.make('CartPole-v1')
-
-target_model = Model3Layers(4)
-behavior_model = Model3Layers(4)
-
-target_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
-behavior_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
 
 
 def remember(_state, _action, _reward, _next_state, _done):
@@ -106,6 +97,19 @@ def learn_from_memory():
     losses = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
 
 
+# =================================== Main Section =====================================================================
+
+
+# Create the environment
+env = gym.make('CartPole-v1')
+
+target_model = Model3Layers(4)
+behavior_model = Model3Layers(4)
+
+target_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+behavior_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+
+
 for episode in range(episodes):
     state = env.reset()
     state = np.reshape(state, [1, state_size])
@@ -122,6 +126,7 @@ for episode in range(episodes):
 
         if done:
             print('Finished episode {} the score was {} epsilon is {}'.format(episode, time, epsilon_greedy))
+            tf.summary.scalar('reward', data=time, step=episode)
             break
 
         if len(replay_memory) > batch_size:
