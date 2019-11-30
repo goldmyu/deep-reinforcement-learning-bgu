@@ -117,8 +117,8 @@ def check_reward_avg(rewards_list, _episode, _first_time_avg_475,n=100):
 # Create the environment
 env = gym.make('CartPole-v1')
 
-target_model = Model5Layers(4)
-behavior_model = Model5Layers(4)
+target_model = Model3Layers(4)
+behavior_model = Model3Layers(4)
 
 target_model.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
 behavior_model.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))

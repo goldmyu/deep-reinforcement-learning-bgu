@@ -73,24 +73,25 @@ def remember(_state, _action, _reward, _next_state, _done):
 
 def learn_from_memory(_step, _global_step):
     minibatch = random.sample(replay_memory, batch_size)
-    states = np.zeros((batch_size, 4))
+
     states_in_minibatch = np.asarray([x[0][0] for x in minibatch])
+    next_states_in_minibatch = np.asanyarray([x[3][0] for x in minibatch])
+
     targets = behavior_model.model.predict(states_in_minibatch)
-    next_states = np.asanyarray([x[3][0] for x in minibatch])
-    outputs_target_model = target_model.model.predict(next_states)
-    outputs_behavior_model = behavior_model.model.predict(next_states)
+    outputs_target_model = target_model.model.predict(next_states_in_minibatch)
+    outputs_behavior_model = behavior_model.model.predict(next_states_in_minibatch)
 
     for index, (_state, _action, _reward, _next_state, _done) in enumerate(minibatch):
         target = _reward
-        states[index] = _state
+
         if not _done:
             behavior_predict = outputs_behavior_model[index]
             behavior_action = np.argmax(behavior_predict)
-            target_q_value = outputs_target_model[0][behavior_action]
+            target_q_value = outputs_target_model[index][behavior_action]
             target = _reward + discount_factor * target_q_value
 
         targets[index, _action] = target
-    loss = behavior_model.model.fit(x=states, y=targets, epochs=1, verbose=0)
+    loss = behavior_model.model.fit(x=states_in_minibatch, y=targets, epochs=1, verbose=0)
     tf.summary.scalar('loss', data=loss.history["loss"][0], step=_global_step)
 
 
