@@ -45,7 +45,7 @@ replay_memory = collections.deque(maxlen=N)
 
 class Model3Layers:
     def __init__(self, _state_dim):
-        self.model_3_layers = tf.keras.Sequential([
+        self.model = tf.keras.Sequential([
             keras.layers.Dense(24, input_dim=state_size, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
@@ -55,7 +55,7 @@ class Model3Layers:
 
 class Model5Layers:
     def __init__(self, _state_dim):
-        self.model_5_layers = tf.keras.Sequential([
+        self.model = tf.keras.Sequential([
             keras.layers.Dense(48, input_dim=state_size, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
@@ -73,7 +73,7 @@ def choose_action_by_epsilon_greedy(_state):
     if rand_num <= epsilon_greedy:
         _step_to_take = env.action_space.sample()
     else:
-        output = behavior_model.model_5_layers.predict(_state)
+        output = behavior_model.model.predict(_state)
         _step_to_take = np.argmax(output)
     return _step_to_take
 
@@ -86,9 +86,9 @@ def learn_from_memory(_step):
     minibatch = random.sample(replay_memory, batch_size)
     states = np.zeros((batch_size, 4))
     states_in_minibatch = np.asarray([x[0][0] for x in minibatch])
-    targets = behavior_model.model_3_layers.predict(states_in_minibatch)
+    targets = behavior_model.model.predict(states_in_minibatch)
     next_states = np.asanyarray([x[3][0] for x in minibatch])
-    outputs = target_model.model_3_layers.predict(next_states)
+    outputs = target_model.model.predict(next_states)
 
     for index, (_state, _action, _reward, _next_state, _done) in enumerate(minibatch):
         target = _reward
@@ -97,7 +97,7 @@ def learn_from_memory(_step):
             target = _reward + discount_factor * np.max(outputs[index])
 
         targets[index, _action] = target
-    loss = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
+    loss = behavior_model.model.fit(x=states, y=targets, epochs=1, verbose=0)
     tf.summary.scalar('loss', data=loss.history["loss"][0], step=_step)
 
 
@@ -116,11 +116,11 @@ def check_reward_avg(rewards_list, _episode, _first_time_avg_475,n=100):
 # Create the environment
 env = gym.make('CartPole-v1')
 
-target_model = Model3Layers(4)
-behavior_model = Model3Layers(4)
+target_model = Model5Layers(4)
+behavior_model = Model5Layers(4)
 
-target_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
-behavior_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+target_model.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+behavior_model.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
 
 
 for episode in range(episodes):
@@ -153,4 +153,4 @@ for episode in range(episodes):
 
         if step % C == 0:
             # copy weights from one network to the other
-            target_model.model_3_layers.set_weights(behavior_model.model_3_layers.get_weights())
+            target_model.model.set_weights(behavior_model.model.get_weights())
