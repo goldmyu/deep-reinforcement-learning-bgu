@@ -32,6 +32,7 @@ epsilon_greedy_decay_rate = 0.999
 min_epsilon = 0.1
 reward_history = []
 first_time_avg_475 = True
+global_step = 0
 
 N = 2000
 C = 16
@@ -133,6 +134,7 @@ for episode in range(episodes):
 
     while not done:
         step += 1
+        global_step += 1
         action = choose_action_by_epsilon_greedy(state)
         next_state, reward, done, info = env.step(action)
         next_state = np.reshape(next_state, [1, state_size])
@@ -151,6 +153,6 @@ for episode in range(episodes):
         if epsilon_greedy > min_epsilon:
             epsilon_greedy = epsilon_greedy * epsilon_greedy_decay_rate
 
-        if step % C == 0:
+        if global_step % C == 0:
             # copy weights from one network to the other
             target_model.model.set_weights(behavior_model.model.get_weights())
