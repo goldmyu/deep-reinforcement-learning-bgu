@@ -34,7 +34,7 @@ reward_history = []
 first_time_avg_475 = True
 
 N = 2000
-C = 16
+C = 32
 # T = 500
 
 replay_memory = collections.deque(maxlen=N)
@@ -73,7 +73,7 @@ def choose_action_by_epsilon_greedy(_state):
     if rand_num <= epsilon_greedy:
         _step_to_take = env.action_space.sample()
     else:
-        output = behavior_model.model_5_layers.predict(_state)
+        output = behavior_model.model_3_layers.predict(_state)
         _step_to_take = np.argmax(output)
     return _step_to_take
 
@@ -88,13 +88,17 @@ def learn_from_memory(_step):
     states_in_minibatch = np.asarray([x[0][0] for x in minibatch])
     targets = behavior_model.model_3_layers.predict(states_in_minibatch)
     next_states = np.asanyarray([x[3][0] for x in minibatch])
-    outputs = target_model.model_3_layers.predict(next_states)
+    outputs_target_model = target_model.model_3_layers.predict(next_states)
+    outputs_behavior_model = behavior_model.model_3_layers.predict(next_states)
 
     for index, (_state, _action, _reward, _next_state, _done) in enumerate(minibatch):
         target = _reward
         states[index] = _state
         if not _done:
-            target = _reward + discount_factor * np.max(outputs[index])
+            behavior_predict = outputs_behavior_model[index]
+            behavior_action = np.argmax(behavior_predict)
+            target_q_value = outputs_target_model[0][behavior_action]
+            target = _reward + discount_factor * target_q_value
 
         targets[index, _action] = target
     loss = behavior_model.model_3_layers.fit(x=states, y=targets, epochs=1, verbose=0)
@@ -123,7 +127,7 @@ behavior_model = Model3Layers(4)
 target_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
 behavior_model.model_3_layers.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
 
-
+time =0
 for episode in range(episodes):
     state = env.reset()
     state = np.reshape(state, [1, state_size])
@@ -134,6 +138,7 @@ for episode in range(episodes):
 
     while not done:
         step += 1
+        time +=1
         action = choose_action_by_epsilon_greedy(state)
         next_state, reward, done, info = env.step(action)
         next_state = np.reshape(next_state, [1, state_size])
