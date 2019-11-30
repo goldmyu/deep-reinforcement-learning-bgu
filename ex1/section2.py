@@ -104,11 +104,10 @@ def learn_from_memory(_step):
 def check_reward_avg(rewards_list, _episode, _first_time_avg_475,n=100):
     if _episode > 0:
         avg = np.sum(rewards_list[_episode-n:_episode]) / n
-        if avg > 475:
-            if _first_time_avg_475:
-                _first_time_avg_475 = False
-                print('Reward avg is above 475 for 100 last episodes, and the episode is {}'.format(episode))
-            tf.summary.scalar('reward_moving_avg', data=avg, step=_episode)
+        tf.summary.scalar('reward_moving_avg', data=avg, step=_episode)
+        if avg > 475 and _first_time_avg_475:
+            _first_time_avg_475 = False
+            print('Reward avg is above 475 for 100 last episodes, and the episode is {}'.format(episode))
     return _first_time_avg_475
 
 # =================================== Main Section =====================================================================
