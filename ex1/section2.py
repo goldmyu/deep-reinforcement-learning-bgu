@@ -83,7 +83,7 @@ def remember(_state, _action, _reward, _next_state, _done):
     replay_memory.append((_state, _action, _reward, _next_state, _done))
 
 
-def learn_from_memory(_step):
+def learn_from_memory(_step,_global_step):
     minibatch = random.sample(replay_memory, batch_size)
     states = np.zeros((batch_size, 4))
     states_in_minibatch = np.asarray([x[0][0] for x in minibatch])
@@ -99,7 +99,7 @@ def learn_from_memory(_step):
 
         targets[index, _action] = target
     loss = behavior_model.model.fit(x=states, y=targets, epochs=1, verbose=0)
-    tf.summary.scalar('loss', data=loss.history["loss"][0], step=_step)
+    tf.summary.scalar('loss', data=loss.history["loss"][0], step=_global_step)
 
 
 def check_reward_avg(rewards_list, _episode, _first_time_avg_475,n=100):
@@ -148,7 +148,7 @@ for episode in range(episodes):
             break
 
         if len(replay_memory) > batch_size:
-            learn_from_memory(step)
+            learn_from_memory(step,global_step)
 
         if epsilon_greedy > min_epsilon:
             epsilon_greedy = epsilon_greedy * epsilon_greedy_decay_rate
