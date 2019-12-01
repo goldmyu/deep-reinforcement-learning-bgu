@@ -5,7 +5,8 @@ from datetime import datetime
 import gym
 import numpy as np
 import tensorflow as tf
-from tensorflow import keras
+import keras
+from keras.models import Sequential
 import collections
 
 # ================================= TensorBoard settings ===============================================================
@@ -47,7 +48,7 @@ replay_memory = collections.deque(maxlen=N)
 
 class Model3Layers:
     def __init__(self, _state_dim):
-        self.model = tf.keras.Sequential([
+        self.model = Sequential([
             keras.layers.Dense(24, input_dim=state_size, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
@@ -113,8 +114,8 @@ env = gym.make('CartPole-v1')
 target_model = Model3Layers(4)
 behavior_model = Model3Layers(4)
 
-target_model.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
-behavior_model.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate))
+target_model.model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=learning_rate))
+behavior_model.model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=learning_rate))
 
 for episode in range(episodes):
     state = env.reset()
