@@ -38,7 +38,7 @@ first_time_avg_475 = True
 global_step = 0
 
 N = 2000
-C = 200
+C = 64
 
 replay_memory = collections.deque(maxlen=N)
 
@@ -60,10 +60,10 @@ class Model5Layers:
     def __init__(self, _state_dim):
         self.model = keras.Sequential([
             keras.layers.Dense(48, input_dim=state_size, activation='relu'),
+            keras.layers.Dense(48, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(24, activation='relu'),
-            keras.layers.Dense(12, activation='relu'),
-            keras.layers.Dense(8, activation='relu'),
+            keras.layers.Dense(24, activation='relu'),
             keras.layers.Dense(2, activation='linear')
         ])
 
@@ -119,8 +119,8 @@ def check_reward_avg(rewards_list, _episode, _first_time_avg_475,n=100):
 # Create the environment
 env = gym.make('CartPole-v1')
 
-target_model = Model3Layers(4)
-behavior_model = Model3Layers(4)
+target_model = Model5Layers(4)
+behavior_model = Model5Layers(4)
 
 target_model.model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=learning_rate))
 behavior_model.model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=learning_rate))

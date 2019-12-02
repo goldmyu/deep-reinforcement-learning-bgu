@@ -37,7 +37,7 @@ global_step = 0
 
 
 N = 2000
-C = 32
+C = 64
 # T = 500
 
 replay_memory = collections.deque(maxlen=N)
