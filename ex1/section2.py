@@ -25,20 +25,20 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 episodes = 5000
 state_size = 4
 
-batch_size = 32
+batch_size = 64
 learning_rate = 0.001
 
-discount_factor = 0.99
-epsilon_greedy = 0.9
+discount_factor = 1
+epsilon_greedy = 1
 epsilon_greedy_decay_rate = 0.999
-min_epsilon = 0.1
+min_epsilon = 0.01
+
 reward_history = []
 first_time_avg_475 = True
 global_step = 0
 
 N = 2000
 C = 200
-# T = 500
 
 replay_memory = collections.deque(maxlen=N)
 

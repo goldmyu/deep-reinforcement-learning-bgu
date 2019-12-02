@@ -24,11 +24,11 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 episodes = 5000
 state_size = 4
 
-batch_size = 32
+batch_size = 64
 learning_rate = 0.001
 
-discount_factor = 0.99
-epsilon_greedy = 0.9
+discount_factor = 1
+epsilon_greedy = 1
 epsilon_greedy_decay_rate = 0.999
 min_epsilon = 0.1
 reward_history = []
