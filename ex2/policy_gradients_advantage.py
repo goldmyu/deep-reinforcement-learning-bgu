@@ -2,10 +2,12 @@ import gym
 import numpy as np
 import tensorflow as tf
 import collections
+from datetime import datetime
 
 
+logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
+file_writer = tf.summary.FileWriter(logdir=logdir)
 env = gym.make('CartPole-v1')
-
 np.random.seed(1)
 
 
@@ -20,6 +22,7 @@ class PolicyNetwork:
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.action = tf.placeholder(tf.int32, [self.action_size], name="action")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
+            self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
             self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
@@ -34,7 +37,34 @@ class PolicyNetwork:
             self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output))
             # Loss with negative log probability
             self.neg_log_prob = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.output, labels=self.action)
-            self.loss = tf.reduce_mean(self.neg_log_prob * self.R_t)
+            self.loss = tf.reduce_mean(self.neg_log_prob * (self.R_t-self.estimated_value))
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
+
+
+
+class ValueNetwork:
+    def __init__(self, _state_size, _learning_rate, name='value_network'):
+        self.state_size = _state_size
+        self.learning_rate = _learning_rate
+
+        with tf.variable_scope(name):
+
+            self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
+            self.R_t = tf.placeholder(tf.float32, name="total_rewards")
+
+            self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
+            self.W2 = tf.get_variable("W2", [12,1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.b2 = tf.get_variable("b2", [1], initializer=tf.zeros_initializer())
+
+            self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
+            self.A1 = tf.nn.relu(self.Z1)
+            self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
+
+            # output the value with no activation function applied to it
+            self.estimated_value = tf.squeeze(self.output)
+
+            self.loss = tf.squared_difference(self.estimated_value, self.R_t)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
@@ -46,19 +76,21 @@ max_episodes = 5000
 max_steps = 501
 discount_factor = 0.99
 learning_rate = 0.0004
+value_learning_rate = 0.0004
 
 render = False
 
 # Initialize the policy network
 tf.reset_default_graph()
 policy = PolicyNetwork(state_size, action_size, learning_rate)
+value = ValueNetwork(state_size, value_learning_rate)
 
 
 # Start training the agent with REINFORCE algorithm
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
-    Transition = collections.namedtuple("Transition", ["state", "action", "reward", "next_state", "done"])
+    Transition = collections.namedtuple("Transition", ["state", "action", "reward", "next_state", "done", "estimated_value"])
     episode_rewards = np.zeros(max_episodes)
     average_rewards = 0.0
 
@@ -68,7 +100,7 @@ with tf.Session() as sess:
         episode_transitions = []
 
         for step in range(max_steps):
-            actions_distribution = sess.run(policy.actions_distribution, {policy.state: state})
+            actions_distribution, estimated_value = sess.run([policy.actions_distribution, value.estimated_value], {policy.state: state, value.state: state})
             action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
             next_state, reward, done, _ = env.step(action)
             next_state = next_state.reshape([1, state_size])
@@ -78,7 +110,7 @@ with tf.Session() as sess:
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
-            episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done))
+            episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done, estimated_value=estimated_value))
             episode_rewards[episode] += reward
 
             if done:
@@ -86,6 +118,9 @@ with tf.Session() as sess:
                     # Check if solved
                     average_rewards = np.mean(episode_rewards[(episode - 99):episode+1])
                 print("Episode {} Reward: {} Average over 100 episodes: {}".format(episode, episode_rewards[episode], round(average_rewards, 2)))
+                tf.summary.scalar('reward_moving_avg', round(average_rewards, 2))
+                tf.summary.scalar('reward', reward)
+
                 if average_rewards > 475:
                     print(' Solved at episode: ' + str(episode))
                     solved = True
@@ -98,5 +133,7 @@ with tf.Session() as sess:
         # Compute Rt for each time-step t and update the network's weights
         for t, transition in enumerate(episode_transitions):
             total_discounted_return = sum(discount_factor ** i * t.reward for i, t in enumerate(episode_transitions[t:])) # Rt
-            feed_dict = {policy.state: transition.state, policy.R_t: total_discounted_return, policy.action: transition.action}
-            _, loss = sess.run([policy.optimizer, policy.loss], feed_dict)
+            feed_dict = {policy.state: transition.state, policy.R_t: total_discounted_return,
+                         policy.action: transition.action, policy.estimated_value: transition.estimated_value,
+                         value.R_t: total_discounted_return, value.state: state}
+            _, policy_loss, _, value_loss = sess.run([policy.optimizer, policy.loss, value.optimizer, value.loss], feed_dict)
