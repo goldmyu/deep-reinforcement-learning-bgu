@@ -4,8 +4,6 @@ import tensorflow as tf
 import collections
 from datetime import datetime
 
-# import keras
-# from keras.models import Sequential
 tf.keras.backend.set_floatx('float64')
 
 # ================================= TensorBoard settings ===============================================================
@@ -32,62 +30,6 @@ render = False
 
 
 # =================================== Network definition ===============================================================
-#
-# class PolicyNetwork:
-#     def __init__(self, _state_size, _action_size, _learning_rate, name='policy_network'):
-#         self.state_size = _state_size
-#         self.action_size = _action_size
-#         self.learning_rate = _learning_rate
-#
-#         with tf.variable_scope(name):
-#
-#             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
-#             self.action = tf.placeholder(tf.int32, [self.action_size], name="action")
-#             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
-#             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
-#
-#             self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-#             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-#             self.W2 = tf.get_variable("W2", [12, self.action_size], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-#             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
-#
-#             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
-#             self.A1 = tf.nn.relu(self.Z1)
-#             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
-#
-#             # Softmax probability distribution over actions
-#             self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output))
-#             # Loss with negative log probability
-#             self.neg_log_prob = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.output, labels=self.action)
-#             self.loss = tf.reduce_mean(self.neg_log_prob * (self.R_t-self.estimated_value))
-#             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-
-#
-# class ValueNetwork:
-#     def __init__(self, _state_size, _learning_rate, name='value_network'):
-#         self.state_size = _state_size
-#         self.learning_rate = _learning_rate
-#
-#         with tf.variable_scope(name):
-#
-#             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
-#             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
-#
-#             self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-#             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-#             self.W2 = tf.get_variable("W2", [12,1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-#             self.b2 = tf.get_variable("b2", [1], initializer=tf.zeros_initializer())
-#
-#             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
-#             self.A1 = tf.nn.relu(self.Z1)
-#             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
-#
-#             # output the value with no activation function applied to it
-#             self.estimated_value = tf.squeeze(self.output)
-#
-#             self.loss = tf.squared_difference(self.estimated_value, self.R_t)
-#             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-
 
 class PolicyNetwork:
     def __init__(self, _state_size):
@@ -140,13 +82,14 @@ value_net.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_
 solved = False
 Transition = collections.namedtuple("Transition",
                                     ["state", "action", "reward", "next_state", "done", "estimated_value"])
-episode_rewards = np.zeros(max_episodes)
+episode_rewards = []
 average_rewards = 0.0
 
 for episode in range(max_episodes):
     state = env.reset()
     state = state.reshape([1, state_size])
     episode_transitions = []
+    episode_reward = 0
 
     for step in range(max_steps):
         # actions_distribution, estimated_value = sess.run([policy_net.actions_distribution, value_net.estimated_value], {policy_net.state: state, value_net.state: state})
@@ -163,12 +106,11 @@ for episode in range(max_episodes):
         action_one_hot[action] = 1
         episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward,
                                               next_state=next_state, done=done, estimated_value=estimated_value))
-        episode_rewards[episode] += reward
+        episode_reward += reward
 
         if done:
-            if episode > 98:
-                # Check if solved
-                average_rewards = np.mean(episode_rewards[(episode - 99):episode + 1])
+            episode_rewards.append(episode_reward)
+            average_rewards = np.mean(episode_rewards[episode-99:episode+1])
             print("Episode {} Reward: {} Average over 100 episodes: {}".
                   format(episode, episode_rewards[episode], round(average_rewards, 2)))
 
@@ -195,3 +137,4 @@ for episode in range(max_episodes):
 
         total_discounted_return = tf.reshape(tf.convert_to_tensor(total_discounted_return),shape=[1])
         value_net.model.fit(x=transition.state, y=total_discounted_return, epochs=1, verbose=0)
+
