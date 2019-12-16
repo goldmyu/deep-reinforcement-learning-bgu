@@ -1,7 +1,6 @@
 import gym
 import numpy as np
 import tensorflow as tf
-import collections
 from datetime import datetime
 
 
@@ -24,13 +23,14 @@ class PolicyNetwork:
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [12, self.action_size], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 8], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.b1 = tf.get_variable("b1", [8], initializer=tf.zeros_initializer())
+            self.W2 = tf.get_variable("W2", [8, self.action_size], initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
-            self.A1 = tf.nn.relu(self.Z1)
+            # self.A1 = tf.nn.relu(self.Z1)
+            self.A1 = tf.nn.sigmoid(self.Z1)
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
             # Softmax probability distribution over actions
@@ -52,13 +52,14 @@ class ValueNetwork:
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [12,1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 10], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.b1 = tf.get_variable("b1", [10], initializer=tf.zeros_initializer())
+            self.W2 = tf.get_variable("W2", [10,1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [1], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
-            self.A1 = tf.nn.relu(self.Z1)
+            # self.A1 = tf.nn.relu(self.Z1)
+            self.A1 = tf.nn.sigmoid(self.Z1)
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
             # output the value with no activation function applied to it
@@ -75,8 +76,8 @@ action_size = env.action_space.n
 max_episodes = 5000
 max_steps = 501
 discount_factor = 0.99
-learning_rate = 0.0004
-value_learning_rate = 0.0004
+learning_rate = 0.001
+value_learning_rate = 0.006
 
 render = False
 
