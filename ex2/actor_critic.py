@@ -90,7 +90,6 @@ value = ValueNetwork(state_size, value_learning_rate)
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
-    # Transition = collections.namedtuple("Transition", ["state", "action", "reward", "next_state", "done", "estimated_value"])
     episode_rewards = np.zeros(max_episodes)
     average_rewards = 0.0
     loss_critic =[]
@@ -99,7 +98,6 @@ with tf.Session() as sess:
     for episode in range(max_episodes):
         state = env.reset()
         state = state.reshape([1, state_size])
-        episode_transitions = []
 
         for step in range(max_steps):
             actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value], {policy.state: state, value.state: state})
@@ -112,11 +110,9 @@ with tf.Session() as sess:
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
-            # episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done, estimated_value=estimated_value))
             episode_rewards[episode] += reward
 
             value_next_state = sess.run(value.estimated_value, {value.state: next_state})
-            # value_state = sess.run(value.estimated_value, {value.state: state})
             td_target = reward
             if not done:
                 td_target += (discount_factor * value_next_state)
