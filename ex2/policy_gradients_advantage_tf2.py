@@ -3,14 +3,15 @@ import numpy as np
 import tensorflow as tf
 import collections
 from datetime import datetime
+# import keras
 
 tf.keras.backend.set_floatx('float64')
 
 # ================================= TensorBoard settings ===============================================================
 
 logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-train_summary_writer = tf.summary.create_file_writer(logdir)
-train_summary_writer.set_as_default()
+file_writer = tf.summary.create_file_writer(logdir)
+file_writer.set_as_default()
 
 # ================================ Hyper-Parameters ====================================================================
 
@@ -54,14 +55,14 @@ class ValueNetwork:
 def grad(model, inputs, targets, _R_t, _estimated_value):
     with tf.GradientTape() as tape:
         loss_value = loss(model, inputs, targets,_R_t, _estimated_value)
-    return loss_value, tape.gradient(loss_value, model.trainable_variables)
+    return loss_value, tape.gradient(loss_value, model.trainable_variabels)
 
 
 # loss_object = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
 
 def loss(model, x, y, _R_t, _estimated_value):
-    y_ = model(x)
+    y_ = model.predict(x)
     y = tf.reshape(tf.convert_to_tensor(y),shape=[1,2])
     return tf.keras.losses.categorical_crossentropy(y_true=y, y_pred=y_) * (_R_t - _estimated_value.item())
 
@@ -74,9 +75,11 @@ policy_net = PolicyNetwork(state_size)
 value_net = ValueNetwork(state_size)
 
 
-policy_optimizer = tf.keras.optimizers.Adam(learning_rate=policy_learning_rate)
-# policy_net.model.compile(loss=policy_loss(R_t, estimated_value),optimizer=keras.optimizers.Adam(learning_rate=policy_learning_rate))
-value_net.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(learning_rate=value_learning_rate))
+# policy_net.model.compile(loss=policy_loss(R_t, estimated_value),
+# optimizer=keras.optimizers.Adam(learning_rate=policy_learning_rate))
+
+policy_optimizer = tf.keras.optimizers.Adam(lr=policy_learning_rate)
+value_net.model.compile(loss='mse', optimizer=tf.keras.optimizers.Adam(lr=value_learning_rate))
 
 # Start training the agent with REINFORCE algorithm
 solved = False
@@ -92,8 +95,7 @@ for episode in range(max_episodes):
     episode_reward = 0
 
     for step in range(max_steps):
-        # actions_distribution, estimated_value = sess.run([policy_net.actions_distribution, value_net.estimated_value], {policy_net.state: state, value_net.state: state})
-        actions_distribution = tf.squeeze(policy_net.model(state))
+        actions_distribution = tf.squeeze(policy_net.model.predict(state))
         estimated_value = value_net.model.predict(state)
         action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
         next_state, reward, done, _ = env.step(action)
