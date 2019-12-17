@@ -146,7 +146,7 @@ with tf.Session() as sess:
                 average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
                 avg_episodes_rewards.append(average_rewards)
                 print("Episode {} Reward: {} Average over 100 episodes: {}".
-                      format(episode, all_episodes_rewards[episode], round(average_rewards, 2)))
+                      format(episode, episode_reward, round(average_rewards, 2)))
 
                 if average_rewards > 475:
                     print(' Solved at episode: ' + str(episode))
