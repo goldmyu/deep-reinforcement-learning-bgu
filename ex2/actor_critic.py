@@ -1,3 +1,6 @@
+from datetime import datetime
+import os
+
 import gym
 import numpy as np
 import tensorflow as tf
@@ -20,6 +23,12 @@ learning_rate = 0.001
 value_learning_rate = 0.006
 
 render = False
+
+experiment_name = 'actor_critic'
+results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
+
 
 
 # ===================================== Models Definition ==============================================================
@@ -83,6 +92,7 @@ class ValueNetwork:
 
 
 # ========================================== Util Methods ==============================================================
+
 def plot_data(data_name, data, step):
     print("Ploting the {} data along the axis of {}".format(data_name, step))
 
@@ -90,8 +100,8 @@ def plot_data(data_name, data, step):
     ax.set_xlabel(step)
     ax.set_ylabel(data_name)
     ax.legend().remove()
-    ax = plt.savefig('results/actor_critic_' + data_name + '.png')
-
+    ax.set_title(experiment_name)
+    plt.savefig(results_dir + '_' + data_name + '.png')
 
 # ========================================== Main Method ===============================================================
 

@@ -1,3 +1,6 @@
+import os
+from datetime import datetime
+
 import gym
 import numpy as np
 import tensorflow as tf
@@ -21,6 +24,11 @@ discount_factor = 0.99
 learning_rate = 0.0004
 value_learning_rate = 0.0004
 
+experiment_name = 'policy_gradient_advantage'
+results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
+
 
 # ===================================== Models Definition ==============================================================
 
@@ -32,15 +40,16 @@ class PolicyNetwork:
         self.learning_rate = _learning_rate
 
         with tf.variable_scope(name):
-
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.action = tf.placeholder(tf.int32, [self.action_size], name="action")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 12],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [12, self.action_size], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W2 = tf.get_variable("W2", [12, self.action_size],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
@@ -51,9 +60,8 @@ class PolicyNetwork:
             self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output))
             # Loss with negative log probability
             self.neg_log_prob = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.output, labels=self.action)
-            self.loss = tf.reduce_mean(self.neg_log_prob * (self.R_t-self.estimated_value))
+            self.loss = tf.reduce_mean(self.neg_log_prob * (self.R_t - self.estimated_value))
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-
 
 
 class ValueNetwork:
@@ -62,13 +70,13 @@ class ValueNetwork:
         self.learning_rate = _learning_rate
 
         with tf.variable_scope(name):
-
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 12],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [12,1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W2 = tf.get_variable("W2", [12, 1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [1], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
@@ -80,6 +88,8 @@ class ValueNetwork:
 
             self.loss = tf.squared_difference(self.estimated_value, self.R_t)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
+
+
 # ========================================== Util Methods ==============================================================
 
 def plot_data(data_name, data, step):
@@ -89,7 +99,9 @@ def plot_data(data_name, data, step):
     ax.set_xlabel(step)
     ax.set_ylabel(data_name)
     ax.legend().remove()
-    ax = plt.savefig('results/policy_gradient_advantage' + data_name + '.png')
+    ax.set_title(experiment_name)
+    plt.savefig(results_dir + '_' + data_name + '.png')
+
 
 # ========================================== Main Method ===============================================================
 
@@ -97,16 +109,16 @@ tf.reset_default_graph()
 policy = PolicyNetwork(state_size, action_size, learning_rate)
 value = ValueNetwork(state_size, value_learning_rate)
 
-
 # Start training the agent with REINFORCE algorithm
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
-    Transition = collections.namedtuple("Transition", ["state", "action", "reward", "next_state", "done", "estimated_value"])
+    Transition = collections.namedtuple("Transition",
+                                        ["state", "action", "reward", "next_state", "done", "estimated_value"])
     all_episodes_rewards = []
     avg_episodes_rewards = []
     all_value_losses = []
-    all_policy_losses=[]
+    all_policy_losses = []
 
     for episode in range(max_episodes):
         state = env.reset()
@@ -115,7 +127,8 @@ with tf.Session() as sess:
         episode_reward = 0
 
         for step in range(max_steps):
-            actions_distribution, estimated_value = sess.run([policy.actions_distribution, value.estimated_value], {policy.state: state, value.state: state})
+            actions_distribution, estimated_value = sess.run([policy.actions_distribution, value.estimated_value],
+                                                             {policy.state: state, value.state: state})
             action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
             next_state, reward, done, _ = env.step(action)
             next_state = next_state.reshape([1, state_size])
@@ -125,7 +138,9 @@ with tf.Session() as sess:
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
-            episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done, estimated_value=estimated_value))
+            episode_transitions.append(
+                Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done,
+                           estimated_value=estimated_value))
             episode_reward += reward
 
             if done:
@@ -146,14 +161,15 @@ with tf.Session() as sess:
 
         # Compute Rt for each time-step t and update the network's weights
         for t, transition in enumerate(episode_transitions):
-            total_discounted_return = sum(discount_factor ** i * t.reward for i, t in enumerate(episode_transitions[t:])) # Rt
+            total_discounted_return = sum(
+                discount_factor ** i * t.reward for i, t in enumerate(episode_transitions[t:]))  # Rt
             feed_dict = {policy.state: transition.state, policy.R_t: total_discounted_return,
                          policy.action: transition.action, policy.estimated_value: transition.estimated_value,
                          value.R_t: total_discounted_return, value.state: state}
-            _, policy_loss, _, value_loss = sess.run([policy.optimizer, policy.loss, value.optimizer, value.loss], feed_dict)
+            _, policy_loss, _, value_loss = sess.run([policy.optimizer, policy.loss, value.optimizer, value.loss],
+                                                     feed_dict)
             all_policy_losses.append(policy_loss)
             all_value_losses.append(value_loss)
-
 
 plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
 plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
