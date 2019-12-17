@@ -7,7 +7,6 @@ import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
 
-
 # =========================================== Define hyperparameters ===================================================
 
 env = gym.make('CartPole-v1')
@@ -22,16 +21,14 @@ discount_factor = 0.99
 learning_rate = 0.001
 value_learning_rate = 0.006
 
-render = False
-
 experiment_name = 'actor_critic'
 results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 
 
-
 # ===================================== Models Definition ==============================================================
+
 class PolicyNetwork:
     def __init__(self, _state_size, _action_size, _learning_rate, name='policy_network'):
         self.state_size = _state_size
@@ -44,9 +41,9 @@ class PolicyNetwork:
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 8],
+            self.W1 = tf.get_variable("W1", [self.state_size, 12],
                                       initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b1 = tf.get_variable("b1", [8], initializer=tf.zeros_initializer())
+            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
             self.W2 = tf.get_variable("W2", [8, self.action_size],
                                       initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
@@ -103,6 +100,7 @@ def plot_data(data_name, data, step):
     ax.set_title(experiment_name)
     plt.savefig(results_dir + '_' + data_name + '.png')
 
+
 # ========================================== Main Method ===============================================================
 
 
@@ -131,9 +129,6 @@ with tf.Session() as sess:
             action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
             next_state, reward, done, _ = env.step(action)
             next_state = next_state.reshape([1, state_size])
-
-            if render:
-                env.render()
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
@@ -167,7 +162,6 @@ with tf.Session() as sess:
 
         if solved:
             break
-
 
 plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
 plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
