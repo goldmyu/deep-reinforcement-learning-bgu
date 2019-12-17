@@ -1,15 +1,26 @@
 import gym
 import numpy as np
 import tensorflow as tf
-from datetime import datetime
+import pandas as pd
 
+# =========================================== Define hyperparameters ===================================================
 
-logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-file_writer = tf.summary.FileWriter(logdir=logdir)
 env = gym.make('CartPole-v1')
 np.random.seed(1)
 
+state_size = 4
+action_size = env.action_space.n
 
+max_episodes = 5000
+max_steps = 501
+discount_factor = 0.99
+learning_rate = 0.001
+value_learning_rate = 0.006
+
+render = False
+
+
+# ===================================== Models Definition ==============================================================
 class PolicyNetwork:
     def __init__(self, _state_size, _action_size, _learning_rate, name='policy_network'):
         self.state_size = _state_size
@@ -17,15 +28,16 @@ class PolicyNetwork:
         self.learning_rate = _learning_rate
 
         with tf.variable_scope(name):
-
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.action = tf.placeholder(tf.int32, [self.action_size], name="action")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 8], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 8],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [8], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [8, self.action_size], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W2 = tf.get_variable("W2", [8, self.action_size],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
@@ -41,20 +53,19 @@ class PolicyNetwork:
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
-
 class ValueNetwork:
     def __init__(self, _state_size, _learning_rate, name='value_network'):
         self.state_size = _state_size
         self.learning_rate = _learning_rate
 
         with tf.variable_scope(name):
-
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 10], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 10],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [10], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [10,1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W2 = tf.get_variable("W2", [10, 1], initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [1], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
@@ -69,39 +80,42 @@ class ValueNetwork:
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
-# Define hyperparameters
-state_size = 4
-action_size = env.action_space.n
+# ========================================== Util Methods ==============================================================
+def plot_data(data_name, data, step):
+    print("Ploting the {} data along the axis of {}".format(data_name, step_name))
 
-max_episodes = 5000
-max_steps = 501
-discount_factor = 0.99
-learning_rate = 0.001
-value_learning_rate = 0.006
+    ax = pd.DataFrame(data).plot()
+    ax.set_xlabel(step)
+    ax.set_ylabel(data_name)
+    ax.legend().remove()
+    ax = plt.savefig('actor_critic_' + data_name + '.jpg')
 
-render = False
+
+# ========================================== Main Method ===============================================================
+
 
 # Initialize the policy network
 tf.reset_default_graph()
 policy = PolicyNetwork(state_size, action_size, learning_rate)
 value = ValueNetwork(state_size, value_learning_rate)
 
-
 # Start training the agent with REINFORCE algorithm
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
-    episode_rewards = np.zeros(max_episodes)
-    average_rewards = 0.0
-    loss_critic =[]
-    loss_actor =[]
+    episode_reward = 0
+    all_episodes_rewards = []
+    avg_episodes_rewards = []
+    loss_critic = []
+    loss_actor = []
 
     for episode in range(max_episodes):
         state = env.reset()
         state = state.reshape([1, state_size])
 
         for step in range(max_steps):
-            actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value], {policy.state: state, value.state: state})
+            actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value],
+                                                         {policy.state: state, value.state: state})
             action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
             next_state, reward, done, _ = env.step(action)
             next_state = next_state.reshape([1, state_size])
@@ -111,7 +125,7 @@ with tf.Session() as sess:
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
-            episode_rewards[episode] += reward
+            all_episodes_rewards[episode] += reward
 
             value_next_state = sess.run(value.estimated_value, {value.state: next_state})
             td_target = reward
@@ -126,13 +140,13 @@ with tf.Session() as sess:
             _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
             loss_actor.append(loss_policy)
 
+            episode_reward += reward
             if done:
-                if episode > 98:
-                    # Check if solved
-                    average_rewards = np.mean(episode_rewards[(episode - 99):episode+1])
-                print("Episode {} Reward: {} Average over 100 episodes: {}".format(episode, episode_rewards[episode], round(average_rewards, 2)))
-                tf.summary.scalar('reward_moving_avg', round(average_rewards, 2))
-                tf.summary.scalar('reward', reward)
+                all_episodes_rewards.append(episode_reward)
+                average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
+                avg_episodes_rewards.append(average_rewards)
+                print("Episode {} Reward: {} Average over 100 episodes: {}".
+                      format(episode, all_episodes_rewards[episode], round(average_rewards, 2)))
 
                 if average_rewards > 475:
                     print(' Solved at episode: ' + str(episode))
@@ -144,3 +158,7 @@ with tf.Session() as sess:
             break
 
 
+plot_data(data=reward, data_name='rewards', step='episode')
+plot_data(data=average_rewards, data_name='average_rewards', step='Last 100 episodes')
+plot_data(data=loss_actor, data_name='actor_loss', step='step')
+plot_data(data=loss_critic, data_name='critic_loss', step='step')
