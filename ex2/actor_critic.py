@@ -125,7 +125,7 @@ with tf.Session() as sess:
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
-            all_episodes_rewards[episode] += reward
+            episode_reward += reward
 
             value_next_state = sess.run(value.estimated_value, {value.state: next_state})
             td_target = reward
