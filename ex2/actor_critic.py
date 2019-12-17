@@ -90,7 +90,7 @@ def plot_data(data_name, data, step):
     ax.set_xlabel(step)
     ax.set_ylabel(data_name)
     ax.legend().remove()
-    ax = plt.savefig('actor_critic_' + data_name + '.jpg')
+    ax = plt.savefig('results/actor_critic_' + data_name + '.png')
 
 
 # ========================================== Main Method ===============================================================
@@ -159,7 +159,7 @@ with tf.Session() as sess:
             break
 
 
-plot_data(data=reward, data_name='rewards', step='episode')
-plot_data(data=average_rewards, data_name='average_rewards', step='Last 100 episodes')
+plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
+plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
 plot_data(data=loss_actor, data_name='actor_loss', step='step')
 plot_data(data=loss_critic, data_name='critic_loss', step='step')

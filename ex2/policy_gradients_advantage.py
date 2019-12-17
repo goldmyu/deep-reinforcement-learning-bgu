@@ -2,13 +2,27 @@ import gym
 import numpy as np
 import tensorflow as tf
 import collections
-from datetime import datetime
+import pandas as pd
+import matplotlib.pyplot as plt
 
+# =========================================== Define hyperparameters ===================================================
 
-logdir = "logs/" + datetime.now().strftime("%Y%m%d-%H%M%S")
-file_writer = tf.summary.FileWriter(logdir=logdir)
+render = False
+
 env = gym.make('CartPole-v1')
 np.random.seed(1)
+
+state_size = 4
+action_size = env.action_space.n
+
+max_episodes = 5000
+max_steps = 501
+discount_factor = 0.99
+learning_rate = 0.0004
+value_learning_rate = 0.0004
+
+
+# ===================================== Models Definition ==============================================================
 
 
 class PolicyNetwork:
@@ -66,21 +80,19 @@ class ValueNetwork:
 
             self.loss = tf.squared_difference(self.estimated_value, self.R_t)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
+# ========================================== Util Methods ==============================================================
 
+def plot_data(data_name, data, step):
+    print("Ploting the {} data along the axis of {}".format(data_name, step))
 
-# Define hyperparameters
-state_size = 4
-action_size = env.action_space.n
+    ax = pd.DataFrame(data).plot()
+    ax.set_xlabel(step)
+    ax.set_ylabel(data_name)
+    ax.legend().remove()
+    ax = plt.savefig('results/policy_gradient_advantage' + data_name + '.png')
 
-max_episodes = 5000
-max_steps = 501
-discount_factor = 0.99
-learning_rate = 0.0004
-value_learning_rate = 0.0004
+# ========================================== Main Method ===============================================================
 
-render = False
-
-# Initialize the policy network
 tf.reset_default_graph()
 policy = PolicyNetwork(state_size, action_size, learning_rate)
 value = ValueNetwork(state_size, value_learning_rate)
@@ -91,13 +103,16 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
     Transition = collections.namedtuple("Transition", ["state", "action", "reward", "next_state", "done", "estimated_value"])
-    episode_rewards = np.zeros(max_episodes)
-    average_rewards = 0.0
+    all_episodes_rewards = []
+    avg_episodes_rewards = []
+    all_value_losses = []
+    all_policy_losses=[]
 
     for episode in range(max_episodes):
         state = env.reset()
         state = state.reshape([1, state_size])
         episode_transitions = []
+        episode_reward = 0
 
         for step in range(max_steps):
             actions_distribution, estimated_value = sess.run([policy.actions_distribution, value.estimated_value], {policy.state: state, value.state: state})
@@ -111,15 +126,14 @@ with tf.Session() as sess:
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
             episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done, estimated_value=estimated_value))
-            episode_rewards[episode] += reward
+            episode_reward += reward
 
             if done:
-                if episode > 98:
-                    # Check if solved
-                    average_rewards = np.mean(episode_rewards[(episode - 99):episode+1])
-                print("Episode {} Reward: {} Average over 100 episodes: {}".format(episode, episode_rewards[episode], round(average_rewards, 2)))
-                tf.summary.scalar('reward_moving_avg', round(average_rewards, 2))
-                tf.summary.scalar('reward', reward)
+                all_episodes_rewards.append(episode_reward)
+                average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
+                avg_episodes_rewards.append(average_rewards)
+                print("Episode {} Reward: {} Average over 100 episodes: {}".
+                      format(episode, episode_reward, round(average_rewards, 2)))
 
                 if average_rewards > 475:
                     print(' Solved at episode: ' + str(episode))
@@ -137,3 +151,11 @@ with tf.Session() as sess:
                          policy.action: transition.action, policy.estimated_value: transition.estimated_value,
                          value.R_t: total_discounted_return, value.state: state}
             _, policy_loss, _, value_loss = sess.run([policy.optimizer, policy.loss, value.optimizer, value.loss], feed_dict)
+            all_policy_losses.append(policy_loss)
+            all_value_losses.append(value_loss)
+
+
+plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
+plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
+plot_data(data=all_value_losses, data_name='value_loss', step='step')
+plot_data(data=all_policy_losses, data_name='policy_loss', step='step')
