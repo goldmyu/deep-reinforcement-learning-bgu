@@ -1,12 +1,36 @@
+import os
+from datetime import datetime
+
 import gym
 import numpy as np
 import tensorflow as tf
 import collections
+import pandas as pd
+import matplotlib.pyplot as plt
 
+
+# =========================================== Define hyperparameters ===================================================
 
 env = gym.make('CartPole-v1')
-
 np.random.seed(1)
+
+state_size = 4
+action_size = env.action_space.n
+
+max_episodes = 5000
+max_steps = 501
+discount_factor = 0.99
+learning_rate = 0.0004
+
+render = False
+
+experiment_name = 'policy_gradient'
+results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
+if not os.path.exists(results_dir):
+    os.makedirs(results_dir)
+
+
+# ===================================== Models Definition ==============================================================
 
 
 class PolicyNetwork:
@@ -16,14 +40,15 @@ class PolicyNetwork:
         self.learning_rate = learning_rate
 
         with tf.variable_scope(name):
-
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
             self.action = tf.placeholder(tf.int32, [self.action_size], name="action")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 12],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [12, self.action_size], initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W2 = tf.get_variable("W2", [12, self.action_size],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
@@ -38,34 +63,41 @@ class PolicyNetwork:
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
-# Define hyperparameters
-state_size = 4
-action_size = env.action_space.n
+# ========================================== Util Methods ==============================================================
 
-max_episodes = 5000
-max_steps = 501
-discount_factor = 0.99
-learning_rate = 0.0004
+def plot_data(data_name, data, step):
+    print("Ploting the {} data along the axis of {}".format(data_name, step))
 
-render = False
+    ax = pd.DataFrame(data).plot()
+    ax.set_xlabel(step)
+    ax.set_ylabel(data_name)
+    ax.legend().remove()
+    ax.set_title(experiment_name)
+    plt.savefig(results_dir + '_' + data_name + '.png')
+
+
+# ========================================== Main Method ===============================================================
+
 
 # Initialize the policy network
 tf.reset_default_graph()
 policy = PolicyNetwork(state_size, action_size, learning_rate)
-
 
 # Start training the agent with REINFORCE algorithm
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
     Transition = collections.namedtuple("Transition", ["state", "action", "reward", "next_state", "done"])
-    episode_rewards = np.zeros(max_episodes)
-    average_rewards = 0.0
+    all_episodes_rewards = []
+    avg_episodes_rewards = []
+    all_losses = []
 
     for episode in range(max_episodes):
         state = env.reset()
         state = state.reshape([1, state_size])
         episode_transitions = []
+        episode_reward = 0
+
 
         for step in range(max_steps):
             actions_distribution = sess.run(policy.actions_distribution, {policy.state: state})
@@ -78,14 +110,17 @@ with tf.Session() as sess:
 
             action_one_hot = np.zeros(action_size)
             action_one_hot[action] = 1
-            episode_transitions.append(Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done))
-            episode_rewards[episode] += reward
+            episode_transitions.append(
+                Transition(state=state, action=action_one_hot, reward=reward, next_state=next_state, done=done))
+            episode_reward += reward
 
             if done:
-                if episode > 98:
-                    # Check if solved
-                    average_rewards = np.mean(episode_rewards[(episode - 99):episode+1])
-                print("Episode {} Reward: {} Average over 100 episodes: {}".format(episode, episode_rewards[episode], round(average_rewards, 2)))
+                all_episodes_rewards.append(episode_reward)
+                average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
+                avg_episodes_rewards.append(average_rewards)
+                print("Episode {} Reward: {} Average over 100 episodes: {}".
+                      format(episode, episode_reward, round(average_rewards, 2)))
+
                 if average_rewards > 475:
                     print(' Solved at episode: ' + str(episode))
                     solved = True
@@ -97,6 +132,15 @@ with tf.Session() as sess:
 
         # Compute Rt for each time-step t and update the network's weights
         for t, transition in enumerate(episode_transitions):
-            total_discounted_return = sum(discount_factor ** i * t.reward for i, t in enumerate(episode_transitions[t:])) # Rt
-            feed_dict = {policy.state: transition.state, policy.R_t: total_discounted_return, policy.action: transition.action}
+            total_discounted_return = sum(
+                discount_factor ** i * t.reward for i, t in enumerate(episode_transitions[t:]))  # Rt
+            feed_dict = {policy.state: transition.state, policy.R_t: total_discounted_return,
+                         policy.action: transition.action}
             _, loss = sess.run([policy.optimizer, policy.loss], feed_dict)
+            all_losses.append(loss)
+
+
+plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
+plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
+plot_data(data=all_losses, data_name='loss', step='step')
+
