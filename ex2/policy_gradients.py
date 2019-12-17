@@ -76,6 +76,12 @@ def plot_data(data_name, data, step):
     plt.savefig(results_dir + '_' + data_name + '.png')
 
 
+def plot_all_results():
+    plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
+    plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
+    plot_data(data=all_losses, data_name='loss', step='step')
+
+
 # ========================================== Main Method ===============================================================
 
 
@@ -128,6 +134,7 @@ with tf.Session() as sess:
             state = next_state
 
         if solved:
+            plot_all_results()
             break
 
         # Compute Rt for each time-step t and update the network's weights
@@ -140,7 +147,4 @@ with tf.Session() as sess:
             all_losses.append(loss)
 
 
-plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
-plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
-plot_data(data=all_losses, data_name='loss', step='step')
 

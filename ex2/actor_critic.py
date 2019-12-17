@@ -101,6 +101,13 @@ def plot_data(data_name, data, step):
     plt.savefig(results_dir + '_' + data_name + '.png')
 
 
+def plot_all_results():
+    plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
+    plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
+    plot_data(data=loss_actor, data_name='actor_loss', step='step')
+    plot_data(data=loss_critic, data_name='critic_loss', step='step')
+
+
 # ========================================== Main Method ===============================================================
 
 
@@ -161,9 +168,6 @@ with tf.Session() as sess:
             state = next_state
 
         if solved:
+            plot_all_results()
             break
 
-plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
-plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
-plot_data(data=loss_actor, data_name='actor_loss', step='step')
-plot_data(data=loss_critic, data_name='critic_loss', step='step')
