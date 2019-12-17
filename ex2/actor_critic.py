@@ -84,7 +84,7 @@ class ValueNetwork:
 
 # ========================================== Util Methods ==============================================================
 def plot_data(data_name, data, step):
-    print("Ploting the {} data along the axis of {}".format(data_name, step_name))
+    print("Ploting the {} data along the axis of {}".format(data_name, step))
 
     ax = pd.DataFrame(data).plot()
     ax.set_xlabel(step)
