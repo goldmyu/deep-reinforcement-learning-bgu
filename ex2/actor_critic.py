@@ -103,7 +103,6 @@ value = ValueNetwork(state_size, value_learning_rate)
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     solved = False
-    episode_reward = 0
     all_episodes_rewards = []
     avg_episodes_rewards = []
     loss_critic = []
@@ -112,6 +111,7 @@ with tf.Session() as sess:
     for episode in range(max_episodes):
         state = env.reset()
         state = state.reshape([1, state_size])
+        episode_reward = 0
 
         for step in range(max_steps):
             actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value],
@@ -140,7 +140,6 @@ with tf.Session() as sess:
             _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
             loss_actor.append(loss_policy)
 
-            episode_reward += reward
             if done:
                 all_episodes_rewards.append(episode_reward)
                 average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
