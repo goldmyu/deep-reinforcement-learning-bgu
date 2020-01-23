@@ -15,16 +15,17 @@ np.random.seed(1)
 state_size = 4
 action_size = env.action_space.n
 
-max_episodes = 5000
+max_episodes = 1000
 max_steps = 501
 discount_factor = 0.99
-learning_rate = 0.001
+policy_learning_rate = 0.0007
 value_learning_rate = 0.006
 
 experiment_name = 'cartpole_model'
-results_dir = 'results/' + experiment_name + '/'
+results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
+
 
 
 # ===================================== Models Definition ==============================================================
@@ -41,10 +42,12 @@ class PolicyNetwork:
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12],initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W1 = tf.get_variable("W1", [self.state_size, 12],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
 
-            self.W2 = tf.get_variable("W2", [12, self.action_size],initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            self.W2 = tf.get_variable("W2", [12, self.action_size],
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
@@ -100,7 +103,7 @@ def plot_data(data_name, data, step):
     plt.savefig(results_dir + '_' + data_name + '.png')
 
 
-def plot_all_results():
+def plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic):
     plot_data(data=all_episodes_rewards, data_name='rewards', step='episode')
     plot_data(data=avg_episodes_rewards, data_name='average_rewards', step='Last 100 episodes')
     plot_data(data=loss_actor, data_name='actor_loss', step='step')
@@ -110,66 +113,77 @@ def plot_all_results():
 # ========================================== Main Method ===============================================================
 
 
-# Initialize the policy network
-tf.reset_default_graph()
-policy = PolicyNetwork(state_size, action_size, learning_rate)
-value = ValueNetwork(state_size, value_learning_rate)
+def train(policy, value, saver):
+    # Start training the agent with REINFORCE algorithm
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
 
-saver = tf.train.Saver()
-checkpoint_path = results_dir
+        all_episodes_rewards = []
+        avg_episodes_rewards = []
+        loss_critic = []
+        loss_actor = []
 
-# Start training the agent with REINFORCE algorithm
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    solved = False
-    all_episodes_rewards = []
-    avg_episodes_rewards = []
-    loss_critic = []
-    loss_actor = []
+        for episode in range(max_episodes):
+            state = env.reset()
+            state = state.reshape([1, state_size])
+            episode_reward = 0
 
-    for episode in range(max_episodes):
-        state = env.reset()
-        state = state.reshape([1, state_size])
-        episode_reward = 0
+            for step in range(max_steps):
+                actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value],
+                                                             {policy.state: state, value.state: state})
+                action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
+                next_state, reward, done, _ = env.step(action)
+                next_state = next_state.reshape([1, state_size])
 
-        for step in range(max_steps):
-            actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value],
-                                                         {policy.state: state, value.state: state})
-            action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
-            next_state, reward, done, _ = env.step(action)
-            next_state = next_state.reshape([1, state_size])
+                action_one_hot = np.zeros(action_size)
+                action_one_hot[action] = 1
+                episode_reward += reward
 
-            action_one_hot = np.zeros(action_size)
-            action_one_hot[action] = 1
-            episode_reward += reward
+                value_next_state = sess.run(value.estimated_value, {value.state: next_state})
+                td_target = reward
+                if not done:
+                    td_target += (discount_factor * value_next_state)
+                lambda_value = td_target - value_state
 
-            value_next_state = sess.run(value.estimated_value, {value.state: next_state})
-            td_target = reward
-            if not done:
-                td_target += (discount_factor * value_next_state)
-            lambda_value = td_target - value_state
+                feed_dict_value = {value.state: state, value.R_t: td_target}
+                _, loss_value = sess.run([value.optimizer, value.loss], feed_dict_value)
+                loss_critic.append(loss_value)
+                feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action_one_hot}
+                _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
+                loss_actor.append(loss_policy)
 
-            feed_dict_value = {value.state: state, value.R_t: td_target}
-            _, loss_value = sess.run([value.optimizer, value.loss], feed_dict_value)
-            loss_critic.append(loss_value)
-            feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action_one_hot}
-            _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
-            loss_actor.append(loss_policy)
+                if done:
+                    all_episodes_rewards.append(episode_reward)
+                    average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
+                    avg_episodes_rewards.append(average_rewards)
+                    print("Episode {} Reward: {} Average over 100 episodes: {}".
+                          format(episode, episode_reward, round(average_rewards, 2)))
 
-            if done:
-                all_episodes_rewards.append(episode_reward)
-                average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
-                avg_episodes_rewards.append(average_rewards)
-                print("Episode {} Reward: {} Average over 100 episodes: {}".
-                      format(episode, episode_reward, round(average_rewards, 2)))
+                    if average_rewards > 475:
+                        print(' Solved at episode: ' + str(episode))
+                        saver.save(sess, results_dir)
+                        plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
+                        return True
+                    if episode>100 and average_rewards<20:
+                        return False
+                    if episode>700 and average_rewards<350:
+                        return False
+                    break
+                state = next_state
+        return False
 
-                if average_rewards > 475:
-                    print(' Solved at episode: ' + str(episode))
-                    solved = True
-                    saver.save(sess, checkpoint_path)
-                break
-            state = next_state
 
-        if solved:
-            plot_all_results()
-            break
+def main():
+    goal_reached = False
+
+    while not goal_reached:
+        tf.reset_default_graph()
+        policy = PolicyNetwork(state_size, action_size, policy_learning_rate)
+        value = ValueNetwork(state_size, value_learning_rate)
+        saver = tf.train.Saver()
+
+        goal_reached = train(policy, value, saver)
+
+
+if __name__ == "__main__":
+    main()
