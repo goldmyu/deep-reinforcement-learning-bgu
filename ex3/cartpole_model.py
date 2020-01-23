@@ -12,8 +12,10 @@ import matplotlib.pyplot as plt
 env = gym.make('CartPole-v1')
 np.random.seed(1)
 
-state_size = 4
-action_size = env.action_space.n
+state_size = 6
+action_size = 3
+pad_state_size_cart_pole = [0, 0]
+valid_action_space_cart_pole = 2
 
 max_episodes = 1000
 max_steps = 501
@@ -25,7 +27,6 @@ experiment_name = 'cartpole_model'
 results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
-
 
 
 # ===================================== Models Definition ==============================================================
@@ -125,14 +126,22 @@ def train(policy, value, saver):
 
         for episode in range(max_episodes):
             state = env.reset()
+            state = np.append(state, [0, 0])
             state = state.reshape([1, state_size])
             episode_reward = 0
 
             for step in range(max_steps):
                 actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value],
                                                              {policy.state: state, value.state: state})
+
+                actions_distribution[2] = 0
+                action_sum = actions_distribution[0] + actions_distribution[1]
+                actions_distribution[0] = actions_distribution[0]/action_sum
+                actions_distribution[1] = actions_distribution[1]/action_sum
+
                 action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
                 next_state, reward, done, _ = env.step(action)
+                next_state = np.append(next_state, [0, 0])
                 next_state = next_state.reshape([1, state_size])
 
                 action_one_hot = np.zeros(action_size)
@@ -164,9 +173,9 @@ def train(policy, value, saver):
                         saver.save(sess, results_dir)
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
                         return True
-                    if episode>100 and average_rewards<20:
+                    if episode > 100 and average_rewards < 20:
                         return False
-                    if episode>700 and average_rewards<350:
+                    if episode > 700 and average_rewards < 350:
                         return False
                     break
                 state = next_state
