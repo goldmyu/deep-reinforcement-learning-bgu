@@ -12,18 +12,14 @@ import matplotlib.pyplot as plt
 env = gym.make('Acrobot-v1')
 np.random.seed(1)
 
-# state_size = 6
-# action_size = 3
-# pad_state_size_cart_pole = [0, 0]
-# valid_action_space_cart_pole = 2
 state_size = 6
 action_size = env.action_space.n
 
-max_episodes = 5000
+max_episodes = 1100
 max_steps = 3000
 discount_factor = 0.97
 policy_learning_rate = 0.0008
-value_learning_rate = 0.002
+value_learning_rate = 0.0025
 
 experiment_name = 'acrobot_model'
 results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
@@ -161,15 +157,13 @@ def train(policy, value, saver):
                     print("Episode {} Reward: {} Average over 100 episodes: {}".
                           format(episode, episode_reward, round(average_rewards, 2)))
 
-                    if average_rewards > -80:
+                    if average_rewards > -81:
                         print(' Solved at episode: ' + str(episode))
                         saver.save(sess, results_dir)
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
                         return True
-                    # if episode > 100 and average_rewards < 20:
-                    #     return False
-                    # if episode > 700 and average_rewards < 350:
-                    #     return False
+                    if episode > 100 and average_rewards < -200:
+                        return False
                     break
                 state = next_state
         return False
