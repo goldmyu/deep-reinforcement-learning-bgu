@@ -43,9 +43,7 @@ class PolicyNetwork:
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
             self.acrobot_1 = tf.placeholder(tf.float32, [None, 12], name="state")
-            self.acrobot_2 = tf.placeholder(tf.float32, [None, self.action_size], name="state")
             self.cartpole_1 = tf.placeholder(tf.float32, [None, 12], name="state")
-            self.cartpole_2 = tf.placeholder(tf.float32, [None, self.action_size], name="state")
 
             self.W1 = tf.get_variable("W1", [self.state_size, 12],
                                       initializer=tf.contrib.layers.xavier_initializer(seed=0))
@@ -56,9 +54,13 @@ class PolicyNetwork:
             self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
+            self.Z1 = tf.add(self.Z1, self.acrobot_1)
+            self.Z1 = tf.add(self.Z1, self.cartpole_1)
+
             # self.A1 = tf.nn.relu(self.Z1)
             self.A1 = tf.nn.sigmoid(self.Z1)
-            self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
+            self.Z2 = tf.add(tf.matmul(self.A1, self.W2), self.b2)
+            self.output = tf.nn.sigmoid(self.Z2)
 
             mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
             root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.0001
@@ -102,7 +104,7 @@ class ValueNetwork:
 
 
 class CartPolePolicy:
-    def __init__(self, _state_size, _action_size, _learning_rate, name='cartpole_model'):
+    def __init__(self, _state_size, _action_size, _learning_rate, name='cartpole_policy'):
         self.state_size = _state_size
         self.action_size = _action_size
         self.learning_rate = _learning_rate
@@ -114,21 +116,21 @@ class CartPolePolicy:
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
             self.W1 = tf.get_variable("W1", [self.state_size, 12],
-                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0), trainable=False)
+            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer(), trainable=False)
 
             self.W2 = tf.get_variable("W2", [12, self.action_size],
-                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer())
+                                      initializer=tf.contrib.layers.xavier_initializer(seed=0), trainable=False)
+            self.b2 = tf.get_variable("b2", [self.action_size], initializer=tf.zeros_initializer(), trainable=False)
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
             # self.A1 = tf.nn.relu(self.Z1)
-            self.A1 = tf.nn.sigmoid(self.Z1)
+            self.A1 = tf.nn.relu(self.Z1)
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
 
 class AcrobotPolicy:
-    def __init__(self, _state_size, _action_size, _learning_rate, name='acrobot_model'):
+    def __init__(self, _state_size, _action_size, _learning_rate, name='acrobot_policy'):
         self.state_size = _state_size
         self.action_size = _action_size
         self.learning_rate = _learning_rate
@@ -139,12 +141,12 @@ class AcrobotPolicy:
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
-            self.W1 = tf.get_variable("W1", [self.state_size, 12],initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
-            self.W2 = tf.get_variable("W2", [12, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b2 = tf.get_variable("b2", [12], initializer=tf.zeros_initializer())
-            self.W3 = tf.get_variable("W3", [12, self.action_size],initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            self.b3 = tf.get_variable("b3", [self.action_size], initializer=tf.zeros_initializer())
+            self.W1 = tf.get_variable("W1", [self.state_size, 12],initializer=tf.contrib.layers.xavier_initializer(seed=0), trainable=False)
+            self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer(), trainable=False)
+            self.W2 = tf.get_variable("W2", [12, 12], initializer=tf.contrib.layers.xavier_initializer(seed=0), trainable=False)
+            self.b2 = tf.get_variable("b2", [12], initializer=tf.zeros_initializer(), trainable=False)
+            self.W3 = tf.get_variable("W3", [12, self.action_size],initializer=tf.contrib.layers.xavier_initializer(seed=0), trainable=False)
+            self.b3 = tf.get_variable("b3", [self.action_size], initializer=tf.zeros_initializer(), trainable=False)
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
             self.A1 = tf.nn.relu(self.Z1)
@@ -180,12 +182,12 @@ def train(policy, value,cartpole_policy,acrobot_policy):
     # Start training the agent with REINFORCE algorithm
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
-        cartpole_res = tf.train.Saver({'cartpole_policy/W1': cartpole_policy.W1, 'cartpole_policy/W2': cartpole_policy.W2,
-                                      'cartpole_policy/b1': cartpole_policy.b1, 'cartpole_policy/b2': cartpole_policy.b2})
+        cartpole_res = tf.train.Saver({'policy_network/W1': cartpole_policy.W1, 'policy_network/W2': cartpole_policy.W2,
+                                      'policy_network/b1': cartpole_policy.b1, 'policy_network/b2': cartpole_policy.b2})
         cartpole_res.restore(sess, 'results/cartpole_model/'+"model.ckpt")
 
-        acrobot_res = tf.train.Saver({'acrobot_policy/W1': acrobot_policy.W1, 'acrobot_policy/W2': acrobot_policy.W2,'acrobot_policy/W3': acrobot_policy.W3,
-                                      'acrobot_policy/b1': acrobot_policy.b1, 'acrobot_policy/b2': acrobot_policy.b2, 'acrobot_policy/b3': acrobot_policy.b3})
+        acrobot_res = tf.train.Saver({'policy_network/W1': acrobot_policy.W1, 'policy_network/W2': acrobot_policy.W2,'policy_network/W3': acrobot_policy.W3,
+                                      'policy_network/b1': acrobot_policy.b1, 'policy_network/b2': acrobot_policy.b2, 'policy_network/b3': acrobot_policy.b3})
         acrobot_res.restore(sess, 'results/acrobot_model/'+"model.ckpt")
         all_episodes_rewards = []
         avg_episodes_rewards = []
@@ -199,8 +201,20 @@ def train(policy, value,cartpole_policy,acrobot_policy):
             episode_reward = 0
 
             for step in range(max_steps):
+                cartpoleA1 = sess.run(cartpole_policy.A1, {cartpole_policy.state:state})
+
+                # feed_dict_acrbt = {source_acrbt.state: state, source_acrbt.crtpl_hidden2: A1_crtpl,
+                #                    source_acrbt.crtpl_output: output_crtpl}
+                acrobatA2 = sess.run(acrobot_policy.A1, {acrobot_policy.state:state})
+
+                feed_dict = {policy.state: state, policy.acrobot_1: acrobatA2, policy.cartpole_1: cartpoleA1}
+                # action = sess.run(policy.action, feed_dict)
+
+
+
+
                 action, value_state = sess.run([policy.action, value.estimated_value],
-                                                             {policy.state: state, value.state: state})
+                                                             {policy.state: state, value.state: state, policy.acrobot_1: acrobatA2, policy.cartpole_1: cartpoleA1})
 
                 next_state, reward, done, _ = env.step(action)
                 next_state = np.append(next_state, [0, 0,0,0])
@@ -217,7 +231,8 @@ def train(policy, value,cartpole_policy,acrobot_policy):
                 feed_dict_value = {value.state: state, value.R_t: td_target}
                 _, loss_value = sess.run([value.optimizer, value.loss], feed_dict_value)
                 loss_critic.append(loss_value)
-                feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action}
+
+                feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action, policy.acrobot_1:acrobatA2, policy.cartpole_1:cartpoleA1}
                 _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
                 loss_actor.append(loss_policy)
 
