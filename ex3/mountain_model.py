@@ -19,10 +19,10 @@ pad_state_size_cart_pole = [0, 0, 0, 0]
 valid_action_space_cart_pole = 2
 
 max_episodes = 1000
-max_steps = 501
+max_steps = 10000
 discount_factor = 0.99
-policy_learning_rate = 0.0007
-value_learning_rate = 0.006
+policy_learning_rate = 0.0002
+value_learning_rate = 0.001
 
 experiment_name = 'mountain_model'
 results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
@@ -58,13 +58,13 @@ class PolicyNetwork:
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
             mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
-            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
+            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.0001
             var = root_var * root_var
 
             self.action_dist = tf.contrib.distributions.Normal(mean, var)
             self.action = self.action_dist.sample(1)
 
-            loss = -tf.log(self.action_dist.prob(self.action)) * self.R_t
+            loss = -tf.log(self.action_dist.prob(self.action) + 0.0001) * self.R_t
             self.loss = loss - self.action_dist.entropy()*0.1
 
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
