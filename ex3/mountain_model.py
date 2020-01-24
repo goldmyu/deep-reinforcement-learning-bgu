@@ -61,10 +61,11 @@ class PolicyNetwork:
             root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
             var = root_var * root_var
 
-            self.action = norm.rvs(loc=mean, scale=var,size=1)
+            self.action_dist = tf.contrib.distributions.Normal(self.mean, self.var)
+            self.action = self.action_dist.sample(1)
 
-            loss = -tf.log(norm.pdf(self.action, loc=mean, scale=var)) * self.R_t
-            self.loss = loss - norm.entropy(loc=mean, scale=var)*0.1
+            loss = -tf.log(self.action_dist.prob(self.action)) * self.R_t
+            self.loss = loss - self.action_dist.entropy()*0.1
 
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
@@ -142,7 +143,6 @@ def train(policy, value, saver):
                 next_state, reward, done, _ = env.step(action)
                 next_state = np.append(next_state, [0, 0,0,0])
                 next_state = next_state.reshape([1, state_size])
-
 
                 episode_reward += reward
 
