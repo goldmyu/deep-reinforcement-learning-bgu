@@ -61,7 +61,7 @@ class PolicyNetwork:
             root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
             var = root_var * root_var
 
-            self.action_dist = tf.contrib.distributions.Normal(self.mean, self.var)
+            self.action_dist = tf.contrib.distributions.Normal(mean, var)
             self.action = self.action_dist.sample(1)
 
             loss = -tf.log(self.action_dist.prob(self.action)) * self.R_t
@@ -137,7 +137,7 @@ def train(policy, value, saver):
             episode_reward = 0
 
             for step in range(max_steps):
-                action, value_state = sess.run([policy.actions_distribution, value.estimated_value],
+                action, value_state = sess.run([policy.action, value.estimated_value],
                                                              {policy.state: state, value.state: state})
 
                 next_state, reward, done, _ = env.step(action)
