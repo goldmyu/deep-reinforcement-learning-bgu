@@ -6,6 +6,7 @@ import numpy as np
 import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import norm
 
 # =========================================== Define hyperparameters ===================================================
 
@@ -14,7 +15,7 @@ np.random.seed(1)
 
 state_size = 6
 action_size = 3
-pad_state_size_cart_pole = [0, 0,0,0]
+pad_state_size_cart_pole = [0, 0, 0, 0]
 valid_action_space_cart_pole = 2
 
 max_episodes = 1000
@@ -56,12 +57,21 @@ class PolicyNetwork:
             self.A1 = tf.nn.sigmoid(self.Z1)
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
+            mean = tf.layers.dense(self.output, 1, None, initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            root_var = tf.layers.dense(self.output, 1, None, initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            var = root_var * root_var
+
+            self.action = np.random.normal(loc=mean, scale=var, size=1)
+
+            loss = -tf.log(self.normal_dist.prob(self.action) + 1e-5) * self.R_t
+
+
             # Softmax probability distribution over actions
-            self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output))
-            # Loss with negative log probability
-            self.neg_log_prob = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.output, labels=self.action)
-            self.loss = tf.reduce_mean(self.neg_log_prob * self.R_t)
-            self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
+            # self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output))
+            # # Loss with negative log probability
+            # self.neg_log_prob = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.output, labels=self.action)
+            # self.loss = tf.reduce_mean(self.neg_log_prob * self.R_t)
+            # self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
 class ValueNetwork:
@@ -126,7 +136,7 @@ def train(policy, value, saver):
 
         for episode in range(max_episodes):
             state = env.reset()
-            state = np.append(state, [0, 0,0,0])
+            state = np.append(state, [0, 0, 0, 0])
             state = state.reshape([1, state_size])
             episode_reward = 0
 
