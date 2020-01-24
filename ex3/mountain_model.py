@@ -167,7 +167,7 @@ def train(policy, value, saver):
 
                     if average_rewards > 80:
                         print(' Solved at episode: ' + str(episode))
-                        saver.save(sess, results_dir)
+                        saver.save(sess, results_dir+"model.ckpt")
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
                         return True
                     if episode >5 and episode_reward < 0:
