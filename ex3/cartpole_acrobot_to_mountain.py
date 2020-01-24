@@ -58,9 +58,9 @@ class PolicyNetwork:
             self.Z1 = tf.add(self.Z1, self.cartpole_1)
 
             # self.A1 = tf.nn.relu(self.Z1)
-            self.A1 = tf.nn.sigmoid(self.Z1)
+            self.A1 = tf.nn.relu(self.Z1)
             self.Z2 = tf.add(tf.matmul(self.A1, self.W2), self.b2)
-            self.output = tf.nn.sigmoid(self.Z2)
+            self.output = tf.nn.elu(self.Z2)
 
             mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
             root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.0001
@@ -202,17 +202,7 @@ def train(policy, value,cartpole_policy,acrobot_policy):
 
             for step in range(max_steps):
                 cartpoleA1 = sess.run(cartpole_policy.A1, {cartpole_policy.state:state})
-
-                # feed_dict_acrbt = {source_acrbt.state: state, source_acrbt.crtpl_hidden2: A1_crtpl,
-                #                    source_acrbt.crtpl_output: output_crtpl}
                 acrobatA2 = sess.run(acrobot_policy.A1, {acrobot_policy.state:state})
-
-                feed_dict = {policy.state: state, policy.acrobot_1: acrobatA2, policy.cartpole_1: cartpoleA1}
-                # action = sess.run(policy.action, feed_dict)
-
-
-
-
                 action, value_state = sess.run([policy.action, value.estimated_value],
                                                              {policy.state: state, value.state: state, policy.acrobot_1: acrobatA2, policy.cartpole_1: cartpoleA1})
 
@@ -252,8 +242,6 @@ def train(policy, value,cartpole_policy,acrobot_policy):
                         return True
                     if episode >= 0 and average_rewards < -20:
                         return False
-                    # if episode > 700 and average_rewards < 350:
-                    #     return False
                     break
                 state = next_state
         return False
