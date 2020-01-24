@@ -40,7 +40,7 @@ class PolicyNetwork:
 
         with tf.variable_scope(name):
             self.state = tf.placeholder(tf.float32, [None, self.state_size], name="state")
-            self.action = tf.placeholder(tf.int32, [self.action_size], name="action")
+            self.action = tf.placeholder(tf.int32, 1, name="action")
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
 
@@ -57,8 +57,8 @@ class PolicyNetwork:
             self.A1 = tf.nn.sigmoid(self.Z1)
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
-            mean = tf.layers.dense(self.output, 1, None, initializer=tf.contrib.layers.xavier_initializer(seed=0))
-            root_var = tf.layers.dense(self.output, 1, None, initializer=tf.contrib.layers.xavier_initializer(seed=0))
+            mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
+            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
             var = root_var * root_var
 
             self.action = norm.rvs(loc=mean, scale=var,size=1)
@@ -136,18 +136,14 @@ def train(policy, value, saver):
             episode_reward = 0
 
             for step in range(max_steps):
-                actions_distribution, value_state = sess.run([policy.actions_distribution, value.estimated_value],
+                action, value_state = sess.run([policy.actions_distribution, value.estimated_value],
                                                              {policy.state: state, value.state: state})
-                actions_distribution[0]=(actions_distribution[0]-0.5)/0.5
-                action = np.random.normal(actions_distribution[0], actions_distribution[1],1)
 
-                # action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
                 next_state, reward, done, _ = env.step(action)
                 next_state = np.append(next_state, [0, 0,0,0])
                 next_state = next_state.reshape([1, state_size])
 
-                action_one_hot = np.zeros(action_size)
-                action_one_hot[action] = 1
+
                 episode_reward += reward
 
                 value_next_state = sess.run(value.estimated_value, {value.state: next_state})
@@ -159,7 +155,7 @@ def train(policy, value, saver):
                 feed_dict_value = {value.state: state, value.R_t: td_target}
                 _, loss_value = sess.run([value.optimizer, value.loss], feed_dict_value)
                 loss_critic.append(loss_value)
-                feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action_one_hot}
+                feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action}
                 _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
                 loss_actor.append(loss_policy)
 
