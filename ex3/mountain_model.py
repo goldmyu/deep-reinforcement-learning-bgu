@@ -61,17 +61,12 @@ class PolicyNetwork:
             root_var = tf.layers.dense(self.output, 1, None, initializer=tf.contrib.layers.xavier_initializer(seed=0))
             var = root_var * root_var
 
-            self.action = np.random.normal(loc=mean, scale=var, size=1)
+            self.action = norm.rvs(loc=mean, scale=var,size=1)
 
-            loss = -tf.log(self.normal_dist.prob(self.action) + 1e-5) * self.R_t
+            loss = -tf.log(norm.pdf(self.action, loc=mean, scale=var)) * self.R_t
+            self.loss = loss - norm.entropy(loc=mean, scale=var)*0.1
 
-
-            # Softmax probability distribution over actions
-            # self.actions_distribution = tf.squeeze(tf.nn.softmax(self.output))
-            # # Loss with negative log probability
-            # self.neg_log_prob = tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.output, labels=self.action)
-            # self.loss = tf.reduce_mean(self.neg_log_prob * self.R_t)
-            # self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
+            self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
 class ValueNetwork:
