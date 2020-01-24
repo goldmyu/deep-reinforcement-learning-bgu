@@ -18,7 +18,7 @@ pad_state_size_cart_pole = [0, 0, 0, 0]
 valid_action_space_cart_pole = 2
 
 max_episodes = 1000
-max_steps = 5000
+max_steps = 10000
 discount_factor = 0.99
 policy_learning_rate = 0.0002
 value_learning_rate = 0.001
@@ -57,15 +57,16 @@ class PolicyNetwork:
             self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
 
             mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
-            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.000001
+            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.0001
             var = root_var * root_var
 
             self.action_dist = tf.contrib.distributions.Normal(mean, var)
             self.action = self.action_dist.sample(1)
 
-            loss = -tf.log(self.action_dist.prob(self.action) + 0.000001) * self.R_t
-            self.loss = loss - self.action_dist.entropy()*0.1
+            self.action = tf.clip_by_value(self.action, clip_value_min=-1, clip_value_max=1)
 
+            loss = -tf.log(self.action_dist.prob(self.action) + 0.0001) * self.R_t
+            self.loss = loss - self.action_dist.entropy()*0.1
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
@@ -170,7 +171,7 @@ def train(policy, value, saver):
                         saver.save(sess, results_dir+"model.ckpt")
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
                         return True
-                    if episode >= 5 and average_rewards < 0:
+                    if episode >= 0 and average_rewards < -20:
                         return False
                     # if episode > 700 and average_rewards < 350:
                     #     return False
