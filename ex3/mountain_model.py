@@ -175,15 +175,15 @@ def train(policy, value, saver):
                     print("Episode {} Reward: {} Average over 100 episodes: {}".
                           format(episode, episode_reward, round(average_rewards, 2)))
 
-                    if average_rewards > 475:
+                    if average_rewards > 90:
                         print(' Solved at episode: ' + str(episode))
                         saver.save(sess, results_dir)
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
                         return True
-                    if episode > 100 and average_rewards < 20:
-                        return False
-                    if episode > 700 and average_rewards < 350:
-                        return False
+                    # if episode > 100 and average_rewards < 20:
+                    #     return False
+                    # if episode > 700 and average_rewards < 350:
+                    #     return False
                     break
                 state = next_state
         return False
