@@ -44,20 +44,17 @@ class PolicyNetwork:
             self.R_t = tf.placeholder(tf.float32, name="total_rewards")
             self.estimated_value = tf.placeholder(tf.float32, name="estimated_value")
             with tf.variable_scope('policy_network'):
-
                 self.W1 = tf.get_variable("W1", [self.state_size, 12],
-                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
+                                          initializer=tf.contrib.layers.xavier_initializer(seed=0))
                 self.b1 = tf.get_variable("b1", [12], initializer=tf.zeros_initializer())
 
                 self.W2 = tf.get_variable("W2", [12, 12],
-                                      initializer=tf.contrib.layers.xavier_initializer(seed=0))
+                                          initializer=tf.contrib.layers.xavier_initializer(seed=0))
                 self.b2 = tf.get_variable("b2", [12], initializer=tf.zeros_initializer())
-
 
             self.W3 = tf.get_variable("W3", [12, self.action_size],
                                       initializer=tf.contrib.layers.xavier_initializer(seed=0))
             self.b3 = tf.get_variable("b3", [self.action_size], initializer=tf.zeros_initializer())
-
 
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
             # self.A1 = tf.nn.relu(self.Z1)
@@ -130,7 +127,7 @@ def train(policy, value):
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver({'policy_network/W1': policy.W1, 'policy_network/b1': policy.b1,
                                 'policy_network/W2': policy.W2, 'policy_network/b2': policy.b2})
-        saver.restore(sess, acrobot_model_dir+"model.ckpt")
+        saver.restore(sess, acrobot_model_dir + "model.ckpt")
 
         all_episodes_rewards = []
         avg_episodes_rewards = []
@@ -149,8 +146,8 @@ def train(policy, value):
 
                 actions_distribution[2] = 0
                 action_sum = actions_distribution[0] + actions_distribution[1]
-                actions_distribution[0] = actions_distribution[0]/action_sum
-                actions_distribution[1] = actions_distribution[1]/action_sum
+                actions_distribution[0] = actions_distribution[0] / action_sum
+                actions_distribution[1] = actions_distribution[1] / action_sum
 
                 action = np.random.choice(np.arange(len(actions_distribution)), p=actions_distribution)
                 next_state, reward, done, _ = env.step(action)
@@ -204,7 +201,6 @@ def main():
         policy = PolicyNetwork(state_size, action_size, policy_learning_rate)
         value = ValueNetwork(state_size, value_learning_rate)
         # saver = tf.train.Saver()
-
 
         goal_reached = train(policy, value)
 

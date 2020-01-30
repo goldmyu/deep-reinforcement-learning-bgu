@@ -18,10 +18,10 @@ action_size = 3
 pad_state_size_cart_pole = [0, 0, 0, 0]
 valid_action_space_cart_pole = 2
 
-max_episodes = 1000
+max_episodes = 5000
 max_steps = 10000
 discount_factor = 0.99
-policy_learning_rate = 0.002
+policy_learning_rate = 0.0002
 value_learning_rate = 0.001
 
 experiment_name = 'mountain_model'
@@ -61,7 +61,7 @@ class PolicyNetwork:
             self.mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
             self.var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
 
-            self.var = tf.nn.softplus(self.sigma) + 1e-5
+            self.var = tf.nn.softplus(self.var) + 1e-5
 
             self.action_dist = tf.contrib.distributions.Normal(self.mean, self.var)
             self.action = self.action_dist.sample(1)
@@ -171,7 +171,7 @@ def train(policy, value, saver, scaler):
                     print("Episode {} Reward: {} Average over 100 episodes: {}".
                           format(episode, episode_reward, round(average_rewards, 2)))
 
-                    if average_rewards > 80:
+                    if average_rewards > 80 and episode > 2:
                         print(' Solved at episode: ' + str(episode))
                         saver.save(sess, results_dir+"model.ckpt")
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
