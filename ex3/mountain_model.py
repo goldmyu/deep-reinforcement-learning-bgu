@@ -3,6 +3,7 @@ import os
 
 import gym
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 import tensorflow as tf
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -20,7 +21,7 @@ valid_action_space_cart_pole = 2
 max_episodes = 1000
 max_steps = 10000
 discount_factor = 0.99
-policy_learning_rate = 0.0002
+policy_learning_rate = 0.002
 value_learning_rate = 0.001
 
 experiment_name = 'mountain_model'
@@ -54,19 +55,20 @@ class PolicyNetwork:
             self.Z1 = tf.add(tf.matmul(self.state, self.W1), self.b1)
             # self.A1 = tf.nn.relu(self.Z1)
             self.A1 = tf.nn.sigmoid(self.Z1)
-            self.output = tf.add(tf.matmul(self.A1, self.W2), self.b2)
+            self.Z2 = tf.add(tf.matmul(self.A1, self.W2), self.b2)
+            self.output = tf.nn.elu(self.Z2)
 
-            mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
-            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.0001
-            var = root_var * root_var
+            self.mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
+            self.var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
 
-            self.action_dist = tf.contrib.distributions.Normal(mean, var)
+            self.var = tf.nn.softplus(self.sigma) + 1e-5
+
+            self.action_dist = tf.contrib.distributions.Normal(self.mean, self.var)
             self.action = self.action_dist.sample(1)
-
             self.action = tf.clip_by_value(self.action, clip_value_min=-1, clip_value_max=1)
 
-            loss = -tf.log(self.action_dist.prob(self.action) + 0.0001) * self.R_t
-            self.loss = loss - self.action_dist.entropy()*0.1
+            loss = -tf.log(self.action_dist.prob(self.action) + 1e-5) * self.R_t
+            self.loss = loss - (self.action_dist.entropy() * 1e-1)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
 
 
@@ -120,7 +122,7 @@ def plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, los
 # ========================================== Main Method ===============================================================
 
 
-def train(policy, value, saver):
+def train(policy, value, saver, scaler):
     # Start training the agent with REINFORCE algorithm
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -132,6 +134,7 @@ def train(policy, value, saver):
 
         for episode in range(max_episodes):
             state = env.reset()
+            state = scaler.transform([state])[0]
             state = np.append(state, [0, 0, 0, 0])
             state = state.reshape([1, state_size])
             episode_reward = 0
@@ -141,6 +144,8 @@ def train(policy, value, saver):
                                                              {policy.state: state, value.state: state})
 
                 next_state, reward, done, _ = env.step(action)
+                next_state = np.squeeze(next_state)
+                next_state = (scaler.transform([next_state]))[0]
                 next_state = np.append(next_state, [0, 0,0,0])
                 next_state = next_state.reshape([1, state_size])
 
@@ -183,13 +188,17 @@ def train(policy, value, saver):
 def main():
     goal_reached = False
 
+    state_space_samples = np.array([env.observation_space.sample() for x in range(10000)])
+    scaler = StandardScaler()
+    scaler.fit(state_space_samples)
+
     while not goal_reached:
         tf.reset_default_graph()
         policy = PolicyNetwork(state_size, action_size, policy_learning_rate)
         value = ValueNetwork(state_size, value_learning_rate)
         saver = tf.train.Saver()
 
-        goal_reached = train(policy, value, saver)
+        goal_reached = train(policy, value, saver, scaler)
 
 
 if __name__ == "__main__":
