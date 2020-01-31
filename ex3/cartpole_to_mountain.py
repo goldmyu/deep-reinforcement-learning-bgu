@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 import os
 
@@ -31,7 +32,7 @@ results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 
-
+start_time = time.time()
 # ===================================== Models Definition ==============================================================
 
 class PolicyNetwork:
@@ -201,6 +202,9 @@ def main():
         saver = tf.train.Saver()
 
         goal_reached = train(policy, value, saver, scaler)
+
+        end_time = time.time()
+        print('Run time was {}'.format(end_time-start_time))
 
 
 if __name__ == "__main__":

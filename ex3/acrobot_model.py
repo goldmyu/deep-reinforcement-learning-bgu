@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 import os
 
@@ -25,6 +26,8 @@ experiment_name = 'acrobot_model'
 results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m%d-%H%M%S") + '/'
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
+
+start_time = time.time()
 
 
 # ===================================== Models Definition ==============================================================
@@ -179,6 +182,9 @@ def main():
         saver = tf.train.Saver()
 
         goal_reached = train(policy, value, saver)
+
+        end_time = time.time()
+        print('Run time was {}'.format(end_time - start_time))
 
 
 if __name__ == "__main__":

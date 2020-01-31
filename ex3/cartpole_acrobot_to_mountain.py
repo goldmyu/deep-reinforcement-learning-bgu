@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 import os
 
@@ -30,6 +31,7 @@ results_dir = 'results/' + experiment_name + '/' + datetime.now().strftime("%Y%m
 if not os.path.exists(results_dir):
     os.makedirs(results_dir)
 
+start_time = time.time()
 
 # ===================================== Models Definition ==============================================================
 
@@ -269,6 +271,9 @@ def main():
         acrobot_policy = AcrobotPolicy(state_size, action_size, policy_learning_rate)
 
         goal_reached = train(policy, value,cartpole_policy,acrobot_policy, scaler)
+
+        end_time = time.time()
+        print('Run time was {}'.format(end_time - start_time))
 
 
 if __name__ == "__main__":
