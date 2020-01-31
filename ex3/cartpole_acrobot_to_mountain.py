@@ -5,6 +5,8 @@ import gym
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
+
 import matplotlib.pyplot as plt
 
 # =========================================== Define hyperparameters ===================================================
@@ -58,23 +60,23 @@ class PolicyNetwork:
             self.Z1 = tf.add(self.Z1, self.cartpole_1)
 
             # self.A1 = tf.nn.relu(self.Z1)
-            self.A1 = tf.nn.relu(self.Z1)
+            self.A1 = tf.nn.sigmoid(self.Z1)
             self.Z2 = tf.add(tf.matmul(self.A1, self.W2), self.b2)
             self.output = tf.nn.elu(self.Z2)
 
-            mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
-            root_var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0)) + 0.0001
-            var = root_var * root_var
 
-            self.action_dist = tf.contrib.distributions.Normal(mean, var)
+            self.mean = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
+            self.var = tf.layers.dense(self.output, 1, None, tf.contrib.layers.xavier_initializer(seed=0))
+
+            self.var = tf.nn.softplus(self.var) + 1e-5
+
+            self.action_dist = tf.contrib.distributions.Normal(self.mean, self.var)
             self.action = self.action_dist.sample(1)
-
             self.action = tf.clip_by_value(self.action, clip_value_min=-1, clip_value_max=1)
 
-            loss = -tf.log(self.action_dist.prob(self.action) + 0.0001) * self.R_t
-            self.loss = loss - self.action_dist.entropy()*0.1
+            loss = -tf.log(self.action_dist.prob(self.action) + 1e-5) * self.R_t
+            self.loss = loss - (self.action_dist.entropy() * 1e-1)
             self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-
 
 class ValueNetwork:
     def __init__(self, _state_size, _learning_rate, name='value_network'):
@@ -178,7 +180,7 @@ def plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, los
 # ========================================== Main Method ===============================================================
 
 
-def train(policy, value,cartpole_policy,acrobot_policy):
+def train(policy, value,cartpole_policy,acrobot_policy, scaler):
     # Start training the agent with REINFORCE algorithm
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -196,6 +198,7 @@ def train(policy, value,cartpole_policy,acrobot_policy):
 
         for episode in range(max_episodes):
             state = env.reset()
+            state = scaler.transform([state])[0]
             state = np.append(state, [0, 0, 0, 0])
             state = state.reshape([1, state_size])
             episode_reward = 0
@@ -207,7 +210,9 @@ def train(policy, value,cartpole_policy,acrobot_policy):
                                                              {policy.state: state, value.state: state, policy.acrobot_1: acrobatA2, policy.cartpole_1: cartpoleA1})
 
                 next_state, reward, done, _ = env.step(action)
-                next_state = np.append(next_state, [0, 0,0,0])
+                next_state = np.squeeze(next_state)
+                next_state = (scaler.transform([next_state]))[0]
+                next_state = np.append(next_state, [0, 0, 0, 0])
                 next_state = next_state.reshape([1, state_size])
 
                 episode_reward += reward
@@ -225,7 +230,9 @@ def train(policy, value,cartpole_policy,acrobot_policy):
                 feed_dict_policy = {policy.state: state, policy.R_t: lambda_value, policy.action: action, policy.acrobot_1:acrobatA2, policy.cartpole_1:cartpoleA1}
                 _, loss_policy = sess.run([policy.optimizer, policy.loss], feed_dict_policy)
                 loss_actor.append(loss_policy)
-
+                if reward >80:
+                    print("Episode {} Reward: {} step: {}".
+                          format(episode, episode_reward, step))
                 if done:
                     all_episodes_rewards.append(episode_reward)
                     average_rewards = np.mean(all_episodes_rewards[episode - 99:episode + 1])
@@ -250,6 +257,10 @@ def train(policy, value,cartpole_policy,acrobot_policy):
 def main():
     goal_reached = False
 
+    state_space_samples = np.array([env.observation_space.sample() for x in range(10000)])
+    scaler = StandardScaler()
+    scaler.fit(state_space_samples)
+
     while not goal_reached:
         tf.reset_default_graph()
         policy = PolicyNetwork(state_size, action_size, policy_learning_rate)
@@ -257,7 +268,7 @@ def main():
         cartpole_policy = CartPolePolicy(state_size, action_size, policy_learning_rate)
         acrobot_policy = AcrobotPolicy(state_size, action_size, policy_learning_rate)
 
-        goal_reached = train(policy, value,cartpole_policy,acrobot_policy)
+        goal_reached = train(policy, value,cartpole_policy,acrobot_policy, scaler)
 
 
 if __name__ == "__main__":
