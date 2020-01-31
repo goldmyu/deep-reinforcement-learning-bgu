@@ -240,7 +240,7 @@ def train(policy, value,cartpole_policy,acrobot_policy, scaler):
                     print("Episode {} Reward: {} Average over 100 episodes: {}".
                           format(episode, episode_reward, round(average_rewards, 2)))
 
-                    if episode > 50 and average_rewards > 80:
+                    if episode > 80 and average_rewards > 80:
                         print(' Solved at episode: ' + str(episode))
                         saver = tf.train.Saver()
 
