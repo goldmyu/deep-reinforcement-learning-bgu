@@ -171,7 +171,7 @@ def train(policy, value, saver, scaler):
                     print("Episode {} Reward: {} Average over 100 episodes: {}".
                           format(episode, episode_reward, round(average_rewards, 2)))
 
-                    if average_rewards > 80 and episode > 50:
+                    if average_rewards > 90 and episode > 50:
                         print(' Solved at episode: ' + str(episode))
                         saver.save(sess, results_dir+"model.ckpt")
                         plot_all_results(all_episodes_rewards, avg_episodes_rewards, loss_actor, loss_critic)
